@@ -973,7 +973,7 @@ async function callClaudeWithPDF(prompt, base64Data, mimeType) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
+        max_tokens: 4000,
         messages: [{
           role: 'user',
           content: [
@@ -1003,6 +1003,54 @@ function notesContext(subset) {
 }
 
 // ─── Capture & Summarize ─────────────────────────────────────────────────────
+function parseAIResponse(raw) {
+  const cleaned = raw.replace(/```json|```/g,'').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch(e) {
+    // Response was truncated — attempt repair by closing open JSON structures
+    let attempt = cleaned;
+    // Close any open string by adding a closing quote if needed
+    const quoteCount = (attempt.match(/(?<!\\)"/g) || []).length;
+    if (quoteCount % 2 !== 0) attempt += '"';
+    // Close open arrays
+    const openBrackets = (attempt.match(/\[/g) || []).length - (attempt.match(/\]/g) || []).length;
+    for (let i = 0; i < openBrackets; i++) attempt += ']';
+    // Close open objects
+    const openBraces = (attempt.match(/\{/g) || []).length - (attempt.match(/\}/g) || []).length;
+    for (let i = 0; i < openBraces; i++) attempt += '}';
+    try {
+      const repaired = JSON.parse(attempt);
+      console.warn('AI response was truncated — repaired successfully. Consider splitting large documents.');
+      return repaired;
+    } catch(e2) {
+      // Repair failed — extract whatever fields we can using regex
+      console.warn('JSON repair failed, extracting fields manually:', e2);
+      const extract = (key, isArray) => {
+        if (isArray) {
+          const m = raw.match(new RegExp('"' + key + '"\\s*:\\s*\\[([^\\]]*)', 'i'));
+          if (!m) return [];
+          return m[1].split('",').map(s => s.replace(/^[\s,"]+|[\s,"]+$/g,'').replace(/\\"/g,'"')).filter(Boolean);
+        } else {
+          const m = raw.match(new RegExp('"' + key + '"\\s*:\\s*"([^"]{0,2000})', 'i'));
+          return m ? m[1] : '';
+        }
+      };
+      toast('Document was very large — partial summary saved. Try splitting into sections for best results.');
+      return {
+        summary: extract('summary', false) || 'Document was too large to fully process. See partial results below.',
+        topics: extract('topics', true),
+        actions: extract('actions', true),
+        decisions: extract('decisions', true),
+        flags: [],
+        private: extract('private', false),
+        followup: extract('followup', true),
+        keywords: extract('keywords', true)
+      };
+    }
+  }
+}
+
 async function runCapture() {
   const topic = document.getElementById('topic').value.trim();
   const mdate = document.getElementById('mdate').value;
@@ -1017,7 +1065,15 @@ async function runCapture() {
   if (!usingPDF && !transcript) { toast('Upload or paste a document / transcript first'); return; }
   if (!topic) { toast('Enter a topic or name'); return; }
   if (!usingPDF && transcript.includes('-->')) transcript = stripVTT(transcript);
-  if (!usingPDF && transcript.length > 28000) transcript = transcript.slice(0, 28000) + '\n[truncated]';
+  if (!usingPDF && transcript.length > 28000) {
+    if (isDoc) {
+      // For large documents split into chunks — summarize first 20k chars and note truncation
+      transcript = transcript.slice(0, 20000) + '\n\n[NOTE: Document was truncated at 20,000 characters due to length. Consider splitting large documents into sections for complete extraction.]';
+      toast('Large document — processing first 20,000 characters. Split into sections for full coverage.');
+    } else {
+      transcript = transcript.slice(0, 28000) + '\n[truncated]';
+    }
+  }
 
   document.getElementById('cap-spinner').classList.add('on');
   document.getElementById('cap-result').style.display = 'none';
@@ -1074,9 +1130,9 @@ ${transcript}`;
     if (usingPDF) {
       raw = await callClaudeWithPDF(docPrompt || meetingPrompt, fileBase64, fileMimeType);
     } else {
-      raw = await callClaude(isDoc ? (docPrompt + '\n\nDocument text:\n' + transcript) : meetingPrompt);
+      raw = await callClaude(isDoc ? (docPrompt + '\n\nDocument text:\n' + transcript) : meetingPrompt, isDoc ? 4000 : 1200);
     }
-    const p = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const p = parseAIResponse(raw);
     const entry = {
       id: Date.now(), cat: selectedCat, topic, participants, date: mdate, type: mtype,
       summary: p.summary||'', topics: p.topics||[], actions: p.actions||[], decisions: p.decisions||[],
