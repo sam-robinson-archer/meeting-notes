@@ -123,7 +123,7 @@ textarea { resize: vertical; }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 1rem; }
 
 /* Category selector */
-.cat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.cat-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
 .cat-opt { padding: 8px 6px; border: 1px solid var(--border2); border-radius: var(--radius-sm); cursor: pointer; text-align: center; font-size: 12px; font-weight: 500; color: var(--text2); background: var(--surface); transition: all 0.15s; }
 .cat-opt:hover { background: var(--surface2); }
 .cat-opt svg { display: block; margin: 0 auto 4px; width: 18px; height: 18px; opacity: 0.6; }
@@ -136,6 +136,12 @@ textarea { resize: vertical; }
 .cat-opt.sel-project { border-color: var(--purple); color: var(--purple-text); background: var(--purple-bg); }
 .cat-opt.sel-project svg { opacity: 1; color: var(--purple); }
 .cat-opt.sel-other { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+.cat-opt.sel-document { border-color: #7c3aed; color: #4c1d95; background: #ede9fe; }
+@media (prefers-color-scheme: dark) { .cat-opt.sel-document { color: #c4b5fd; background: #2e1065; } }
+.av-document { background: #ede9fe; color: #4c1d95; }
+@media (prefers-color-scheme: dark) { .av-document { background: #2e1065; color: #c4b5fd; } }
+.badge-document { background: #ede9fe; color: #4c1d95; }
+@media (prefers-color-scheme: dark) { .badge-document { background: #2e1065; color: #c4b5fd; } }
 
 /* Badges */
 .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
@@ -284,9 +290,10 @@ textarea { resize: vertical; }
   .nav-item svg { width: 20px; height: 20px; }
   .main { padding: 1rem; padding-bottom: 80px; }
   .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
-  .cat-grid { grid-template-columns: repeat(5, 1fr); }
+  .cat-grid { grid-template-columns: repeat(3, 1fr); }
 }
 </style>
+<script src="https://unpkg.com/mammoth@1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
 
@@ -374,6 +381,10 @@ textarea { resize: vertical; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
         Other
       </div>
+      <div class="cat-opt" data-cat="Document" onclick="selectCat(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Document
+      </div>
     </div>
   </div>
 
@@ -399,6 +410,8 @@ textarea { resize: vertical; }
             <option>Weekly 1:1</option><option>Monthly check-in</option><option>Kickoff</option>
             <option>Status update</option><option>Performance review</option>
             <option>Planning session</option><option>Retrospective</option><option>Ad-hoc</option>
+            <option>SOW / Contract</option><option>Proposal</option><option>Brief / Requirements</option>
+            <option>Email thread</option><option>Reference document</option>
           </select>
         </div>
         <div class="form-row">
@@ -417,10 +430,10 @@ textarea { resize: vertical; }
           <label>Transcript or notes</label>
           <div class="drop-zone" id="dz" onclick="document.getElementById('fi').click()">
             <div class="drop-icon">↑</div>
-            <div class="drop-label">Drop .vtt or .txt transcript here</div>
-            <div class="drop-sub">Teams: meeting chat → download transcript</div>
+            <div class="drop-label">Drop transcript, PDF, or Word doc here</div>
+            <div class="drop-sub">.vtt .txt — Teams transcripts &nbsp;·&nbsp; .pdf .docx — contracts, SOWs, briefs</div>
           </div>
-          <input type="file" id="fi" accept=".vtt,.txt" style="display:none"/>
+          <input type="file" id="fi" accept=".vtt,.txt,.pdf,.docx,.doc" style="display:none"/>
           <div class="file-pill" id="fpill">
             <span style="font-size:16px;">📄</span><span id="fname"></span>
             <button class="rm-file" onclick="clearFile()" aria-label="Remove file">×</button>
@@ -771,7 +784,7 @@ document.getElementById('digest-date').value = today();
 
 function getInitials(n) { return (n||'?').trim().split(/[\s\/\-]+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,2); }
 
-function catClass(cat) { return ({  '1:1':'1on1','Client':'client','Internal':'internal','Project':'project','Other':'other'})[cat]||'other'; }
+function catClass(cat) { return ({'1:1':'1on1','Client':'client','Internal':'internal','Project':'project','Other':'other','Document':'document'})[cat]||'other'; }
 
 function badgeHtml(cat) { return `<span class="badge badge-${catClass(cat)}">${cat}</span>`; }
 
@@ -841,17 +854,18 @@ function showPanel(id, el) {
 
 // ─── Category selector ───────────────────────────────────────────────────────
 const CAT_META = {
-  '1:1':     { label: 'Direct report',        hint: 'Name of the direct report',                   type: 'Weekly 1:1' },
-  'Client':  { label: 'Client / company',     hint: 'Client or company name (e.g. NLG, Manulife)', type: 'Status update' },
-  'Internal':{ label: 'Meeting / initiative', hint: 'Team or initiative name',                     type: 'Status update' },
-  'Project': { label: 'Project name',         hint: 'Project or workstream name',                  type: 'Planning session' },
-  'Other':   { label: 'Topic',                hint: 'Topic, person, or any descriptor',            type: 'Ad-hoc' }
+  '1:1':      { label: 'Direct report',        hint: 'Name of the direct report',                      type: 'Weekly 1:1' },
+  'Client':   { label: 'Client / company',     hint: 'Client or company name (e.g. NLG, Manulife)',    type: 'Status update' },
+  'Internal': { label: 'Meeting / initiative', hint: 'Team or initiative name',                        type: 'Status update' },
+  'Project':  { label: 'Project name',         hint: 'Project or workstream name',                     type: 'Planning session' },
+  'Other':    { label: 'Topic',                hint: 'Topic, person, or any descriptor',               type: 'Ad-hoc' },
+  'Document': { label: 'Document / topic',     hint: 'Client, project, or topic this document relates to', type: 'SOW / Contract' }
 };
 
 function selectCat(el) {
   document.querySelectorAll('.cat-opt').forEach(o => o.className = 'cat-opt');
   const cat = el.dataset.cat;
-  const key = ({  '1:1':'sel-1on1','Client':'sel-client','Internal':'sel-internal','Project':'sel-project','Other':'sel-other'})[cat];
+  const key = ({'1:1':'sel-1on1','Client':'sel-client','Internal':'sel-internal','Project':'sel-project','Other':'sel-other','Document':'sel-document'})[cat];
   el.classList.add(key);
   selectedCat = cat;
   const m = CAT_META[cat];
@@ -862,18 +876,54 @@ function selectCat(el) {
 
 // ─── File handling ────────────────────────────────────────────────────────────
 let fileText = '';
+let fileBase64 = '';
+let fileIsPDF = false;
+let fileMimeType = '';
 const dz = document.getElementById('dz'), fi = document.getElementById('fi');
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('over'));
 dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
 fi.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 
-function handleFile(f) {
+async function handleFile(f) {
   document.getElementById('fname').textContent = f.name;
   document.getElementById('fpill').classList.add('on');
-  const r = new FileReader(); r.onload = e => { fileText = e.target.result; }; r.readAsText(f);
+  fileText = ''; fileBase64 = ''; fileIsPDF = false; fileMimeType = '';
+  const ext = f.name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') {
+    fileIsPDF = true; fileMimeType = 'application/pdf';
+    const buf = await f.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b));
+    fileBase64 = btoa(bin);
+    toast('PDF loaded — ready to summarize');
+  } else if (ext === 'docx' || ext === 'doc') {
+    fileMimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    try {
+      const buf = await f.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer: buf });
+      fileText = result.value;
+      if (result.messages && result.messages.length) console.warn('Mammoth warnings:', result.messages);
+      toast('Word doc loaded — ' + fileText.length + ' characters extracted');
+    } catch(e) {
+      toast('Could not read DOCX — try copy/pasting the text instead');
+      console.error('DOCX parse error:', e);
+    }
+  } else {
+    const r = new FileReader();
+    r.onload = e => { fileText = e.target.result; };
+    r.readAsText(f);
+  }
+  // Auto-select Document category for PDF/DOCX if not already on Document
+  if ((ext === 'pdf' || ext === 'docx' || ext === 'doc') && selectedCat !== 'Document') {
+    const docBtn = document.querySelector('.cat-opt[data-cat="Document"]');
+    if (docBtn) selectCat(docBtn);
+  }
 }
-function clearFile() { fileText = ''; fi.value = ''; document.getElementById('fpill').classList.remove('on'); }
+function clearFile() {
+  fileText = ''; fileBase64 = ''; fileIsPDF = false; fileMimeType = '';
+  fi.value = ''; document.getElementById('fpill').classList.remove('on');
+}
 function clearCapture() { clearFile(); document.getElementById('paste').value = ''; document.getElementById('cap-result').style.display = 'none'; }
 
 // ─── API call ─────────────────────────────────────────────────────────────────
@@ -908,6 +958,44 @@ async function callClaude(prompt, maxTokens = 1200) {
   return data.content.map(b => b.text || '').join('');
 }
 
+async function callClaudeWithPDF(prompt, base64Data, mimeType) {
+  const key = getApiKey();
+  if (!key) { document.getElementById('api-modal').classList.add('on'); throw new Error('No API key'); }
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'document', source: { type: 'base64', media_type: mimeType, data: base64Data } },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+  } catch(fetchErr) {
+    console.error('PDF fetch failed:', fetchErr);
+    throw new Error('Network error sending PDF — check console for details');
+  }
+  if (!res.ok) {
+    let errMsg = 'API error ' + res.status;
+    try { const e = await res.json(); errMsg = e.error?.message || errMsg; } catch(_) {}
+    throw new Error(errMsg);
+  }
+  const data = await res.json();
+  return data.content.map(b => b.text || '').join('');
+}
+
 function notesContext(subset) {
   return (subset || notes).map(n =>
     `---\nCategory: ${n.cat} | Topic: ${n.topic} | Date: ${n.date} | Type: ${n.type}${n.participants ? ` | Participants: ${n.participants}` : ''}\nSummary: ${n.summary}\nTopics: ${(n.topics||[]).join('; ')}\nActions: ${(n.actions||[]).join('; ')}\nDecisions: ${(n.decisions||[]).join('; ')}\nFlags: ${(n.flags||[]).map(f=>f.label+'('+f.type+')').join(', ')}\nKeywords: ${(n.keywords||[]).join(', ')}\nCoaching/private: ${n.private||''}`
@@ -924,17 +1012,21 @@ async function runCapture() {
   const participants = document.getElementById('participants').value.trim();
   const pasted = document.getElementById('paste').value.trim();
   let transcript = fileText || pasted;
+  const usingPDF = fileIsPDF && fileBase64;
 
-  if (!transcript) { toast('Upload or paste a transcript first'); return; }
+  if (!usingPDF && !transcript) { toast('Upload or paste a document / transcript first'); return; }
   if (!topic) { toast('Enter a topic or name'); return; }
-  if (transcript.includes('-->')) transcript = stripVTT(transcript);
-  if (transcript.length > 28000) transcript = transcript.slice(0, 28000) + '\n[truncated]';
+  if (!usingPDF && transcript.includes('-->')) transcript = stripVTT(transcript);
+  if (!usingPDF && transcript.length > 28000) transcript = transcript.slice(0, 28000) + '\n[truncated]';
 
   document.getElementById('cap-spinner').classList.add('on');
   document.getElementById('cap-result').style.display = 'none';
   document.getElementById('go-btn').disabled = true;
 
-  const steps = ['Processing transcript...','Identifying themes...','Extracting actions...','Generating summary...'];
+  const isDoc = selectedCat === 'Document';
+  const steps = isDoc
+    ? ['Reading document...','Extracting commitments...','Identifying key terms...','Generating summary...']
+    : ['Processing transcript...','Identifying themes...','Extracting actions...','Generating summary...'];
   let si = 0; const sl = document.getElementById('cap-spin-label');
   const tick = setInterval(() => { si = (si+1) % steps.length; sl.textContent = steps[si]; }, 2000);
 
@@ -943,10 +1035,25 @@ async function runCapture() {
     'Client': `Client meeting with "${topic}". Focus on client needs, commitments, risks, next steps. Private notes = internal observations not for client.`,
     'Internal': `Internal meeting: "${topic}". Focus on decisions, actions, alignment. Private notes = sensitive political observations.`,
     'Project': `Project meeting for "${topic}". Focus on status, blockers, decisions, delivery risk. Private notes = concerns about timeline or team dynamics.`,
-    'Other': `Meeting about "${topic}". Focus on key outcomes, decisions, follow-ups.`
+    'Other': `Meeting about "${topic}". Focus on key outcomes, decisions, follow-ups.`,
+    'Document': `This is a ${mtype} document related to "${topic}". Extract structured intelligence from it as described below.`
   };
 
-  const prompt = `You are a meeting notes assistant. Analyze this ${selectedCat} meeting transcript/notes and return ONLY valid JSON, no markdown:
+  const docPrompt = isDoc ? `You are a professional services document analyst. Analyze this ${mtype} and return ONLY valid JSON, no markdown:
+{
+  "summary": "3-4 sentence executive summary of the document's purpose and scope",
+  "topics": ["Section/topic 1: brief desc"],
+  "actions": ["Deliverable or obligation (responsible party)"],
+  "decisions": ["Key term, commitment, or agreement"],
+  "flags": [{"label": "short text", "type": "win|risk|action"}],
+  "private": "1-2 sentence internal observation — risks, concerns, or negotiation notes",
+  "followup": ["Open item, missing detail, or question to clarify"],
+  "keywords": ["kw1","kw2","kw3","kw4","kw5"]
+}
+Document context: Related to "${topic}"${participants ? ` | Parties: ${participants}` : ''}${focus ? ` | Focus especially on: ${focus}` : ''}
+Rules: actions = deliverables, obligations, or commitments with named party in parens; decisions = agreed terms, dates, amounts, scope boundaries; flags: risk=liability/concern, win=favorable term, action=time-sensitive obligation; keywords=5-8 tags; be specific and extract real details not generalities.` : null;
+
+  const meetingPrompt = `You are a meeting notes assistant. Analyze this ${selectedCat} meeting transcript/notes and return ONLY valid JSON, no markdown:
 {
   "summary": "3-4 sentence narrative",
   "topics": ["Topic 1: brief desc"],
@@ -963,7 +1070,12 @@ Rules: max 3 flags (win=achievement, risk=concern/blocker, action=urgent); keywo
 ${transcript}`;
 
   try {
-    const raw = await callClaude(prompt);
+    let raw;
+    if (usingPDF) {
+      raw = await callClaudeWithPDF(docPrompt || meetingPrompt, fileBase64, fileMimeType);
+    } else {
+      raw = await callClaude(isDoc ? (docPrompt + '\n\nDocument text:\n' + transcript) : meetingPrompt);
+    }
     const p = JSON.parse(raw.replace(/```json|```/g,'').trim());
     const entry = {
       id: Date.now(), cat: selectedCat, topic, participants, date: mdate, type: mtype,
