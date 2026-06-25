@@ -504,6 +504,7 @@ textarea { resize: vertical; }
   <p class="page-sub">All action items extracted from your notes. Mark done as you complete them.</p>
   <div class="search-filters">
     <select id="a-topic" onchange="renderActions()"><option value="">All topics</option></select>
+    <select id="a-assignee" onchange="renderActions()"><option value="">All assignees</option></select>
     <select id="a-status" onchange="renderActions()"><option value="open">Open only</option><option value="all">All items</option></select>
     <select id="a-age" onchange="renderActions()"><option value="">Any age</option><option value="overdue">Overdue (14+ days)</option><option value="mid">Mid (7–13 days)</option><option value="new">New (&lt;7 days)</option></select>
   </div>
@@ -1136,32 +1137,50 @@ function openHistoryDetail(idx) {
 }
 
 // ─── Action Items ─────────────────────────────────────────────────────────────
-function getAllOpenActions() {
+function parseAssignee(text) {
+  // Extract owner from "Action text (owner)" pattern
+  const m = text.match(/\(([^)]+)\)\s*$/);
+  return m ? m[1].trim() : null;
+}
+
+function buildActionsList() {
   const all = [];
   notes.forEach(n => {
     (n.actions||[]).forEach((a,i) => {
       const id = `${n.id}_${i}`;
-      all.push({ id, text: a, topic: n.topic, cat: n.cat, date: n.date, done: actionStates[id]?.done || false });
+      const assignee = parseAssignee(a);
+      all.push({ id, text: a, assignee, topic: n.topic, cat: n.cat, date: n.date, done: actionStates[id]?.done||false });
     });
   });
-  return all.filter(a => !a.done);
+  return all;
+}
+
+function getAllOpenActions() {
+  return buildActionsList().filter(a => !a.done);
+}
+
+function updateAssigneeSelect() {
+  const all = buildActionsList();
+  const assignees = [...new Set(all.map(a => a.assignee).filter(Boolean))].sort();
+  const el = document.getElementById('a-assignee');
+  if (!el) return;
+  const cur = el.value;
+  el.innerHTML = '<option value="">All assignees</option>' +
+    assignees.map(a => `<option value="${a}"${a===cur?' selected':''}>${a}</option>`).join('');
 }
 
 function renderActions() {
+  updateAssigneeSelect();
   const topicF = document.getElementById('a-topic').value;
+  const assigneeF = document.getElementById('a-assignee').value;
   const statusF = document.getElementById('a-status').value;
   const ageF = document.getElementById('a-age').value;
 
-  let all = [];
-  notes.forEach(n => {
-    (n.actions||[]).forEach((a,i) => {
-      const id = `${n.id}_${i}`;
-      all.push({ id, text: a, topic: n.topic, cat: n.cat, date: n.date, done: actionStates[id]?.done||false });
-    });
-  });
+  let all = buildActionsList();
 
   let filtered = all.filter(a => {
     if (topicF && a.topic !== topicF) return false;
+    if (assigneeF && a.assignee !== assigneeF) return false;
     if (statusF === 'open' && a.done) return false;
     if (ageF && !a.done) {
       const ag = ageClass(a.date);
@@ -1173,29 +1192,48 @@ function renderActions() {
   const list = document.getElementById('a-list');
   if (!filtered.length) { list.innerHTML = `<div class="empty"><div class="empty-icon">✓</div><p>${statusF==='open'?'No open action items. All clear!':'No action items found.'}</p></div>`; return; }
 
+  // When filtering by assignee, group by assignee instead of topic
+  const groupKey = assigneeF ? 'assignee' : 'topic';
   const grouped = {};
-  filtered.forEach(a => { if (!grouped[a.topic]) grouped[a.topic] = []; grouped[a.topic].push(a); });
+  filtered.forEach(a => {
+    const key = a[groupKey] || a.topic;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(a);
+  });
 
-  list.innerHTML = Object.entries(grouped).map(([topic, actions]) => `
+  list.innerHTML = Object.entries(grouped).map(([groupName, actions]) => {
+    const firstNote = actions[0];
+    const headerAvatar = assigneeF
+      ? `<div class="avatar" style="background:var(--purple-bg);color:var(--purple-text);">${getInitials(groupName)}</div>`
+      : avatarHtml(groupName, firstNote.cat);
+    const headerSub = assigneeF
+      ? `<div style="font-size:12px;color:var(--text3);">${actions.length} item${actions.length!==1?'s':''} assigned</div>`
+      : `<div style="font-size:12px;color:var(--text3);">${badgeHtml(firstNote.cat)}</div>`;
+    return `
     <div class="card" style="margin-bottom:8px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-        ${avatarHtml(topic, actions[0].cat)}
+        ${headerAvatar}
         <div>
-          <div style="font-size:14px;font-weight:600;">${topic}</div>
-          <div style="font-size:12px;color:var(--text3);">${badgeHtml(actions[0].cat)}</div>
+          <div style="font-size:14px;font-weight:600;">${groupName}</div>
+          ${headerSub}
         </div>
       </div>
-      ${actions.map(a => `
+      ${actions.map(a => {
+        const assigneeBadge = assigneeF ? '' : (a.assignee ? `<span style="font-size:11px;padding:1px 7px;border-radius:99px;background:var(--purple-bg);color:var(--purple-text);margin-left:4px;">${a.assignee}</span>` : '');
+        const topicBadge = assigneeF ? `<span style="font-size:11px;color:var(--text3);margin-right:4px;">${a.topic} ·</span>` : '';
+        return `
         <div class="action-item">
           <div class="action-check ${a.done?'done':''}" onclick="toggleAction('${a.id}', this)" role="checkbox" aria-checked="${a.done}" tabindex="0">
             <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="2 6 5 9 10 3"/></svg>
           </div>
-          <div>
-            <div class="action-text ${a.done?'done':''}">${a.text}</div>
-            <div class="action-from">${a.date} · ${a.cat} meeting ${!a.done ? `<span class="action-age ${ageClass(a.date)}">${ageLabel(a.date)}</span>` : ''}</div>
+          <div style="flex:1;">
+            <div class="action-text ${a.done?'done':''}">${a.text}${assigneeBadge}</div>
+            <div class="action-from">${topicBadge}${a.date} · ${a.cat} meeting ${!a.done ? `<span class="action-age ${ageClass(a.date)}">${ageLabel(a.date)}</span>` : ''}</div>
           </div>
-        </div>`).join('')}
-    </div>`).join('');
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
 }
 
 function toggleAction(id, el) {
