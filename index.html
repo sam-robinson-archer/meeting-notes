@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Meeting Notes</title>
+<style>
+:root {
+  --bg: #f9f8f6;
+  --surface: #ffffff;
+  --surface2: #f3f2ef;
+  --border: rgba(0,0,0,0.1);
+  --border2: rgba(0,0,0,0.18);
+  --text: #1a1a18;
+  --text2: #5c5c58;
+  --text3: #9a9a94;
+  --accent: #1a1a18;
+  --blue: #1860a8;
+  --blue-bg: #e8f0fb;
+  --blue-text: #0e3d70;
+  --green: #1a6e3c;
+  --green-bg: #e4f4eb;
+  --green-text: #0f4526;
+  --amber: #8a5a00;
+  --amber-bg: #fef3d8;
+  --amber-text: #5a3a00;
+  --red: #b52a2a;
+  --red-bg: #fdeaea;
+  --red-text: #7a1a1a;
+  --purple: #4a3ab0;
+  --purple-bg: #eeedfb;
+  --purple-text: #2a1a80;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'SF Mono', 'Fira Code', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111110;
+    --surface: #1c1c1a;
+    --surface2: #252523;
+    --border: rgba(255,255,255,0.1);
+    --border2: rgba(255,255,255,0.18);
+    --text: #e8e8e2;
+    --text2: #9a9a94;
+    --text3: #5c5c58;
+    --accent: #e8e8e2;
+    --blue: #5b9cf0;
+    --blue-bg: #0e2a4a;
+    --blue-text: #90bef8;
+    --green: #4aaa6e;
+    --green-bg: #0e2a1c;
+    --green-text: #7ad0a0;
+    --amber: #e0a040;
+    --amber-bg: #2a1e00;
+    --amber-text: #f0c070;
+    --red: #e06060;
+    --red-bg: #2a0e0e;
+    --red-text: #f09090;
+    --purple: #8878e8;
+    --purple-bg: #1a1440;
+    --purple-text: #b0a8f8;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+a { color: var(--blue); text-decoration: none; }
+button, input, select, textarea { font-family: var(--font); font-size: inherit; }
+
+/* Layout */
+.app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 1.5rem 0; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.main { padding: 2rem; max-width: 900px; }
+
+/* Sidebar */
+.logo { padding: 0 1.25rem 1.5rem; font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem; }
+.logo span { font-weight: 400; color: var(--text2); }
+.nav-section { padding: 0.5rem 0.75rem 0.25rem; font-size: 11px; font-weight: 600; letter-spacing: 0.07em; color: var(--text3); text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 1.25rem; font-size: 14px; color: var(--text2); cursor: pointer; border: none; background: none; width: 100%; text-align: left; border-radius: 0; transition: background 0.1s, color 0.1s; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--surface2); color: var(--text); font-weight: 500; }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.7; }
+.nav-item.active svg { opacity: 1; }
+.sidebar-footer { margin-top: auto; padding: 1rem 1.25rem 0; border-top: 1px solid var(--border); }
+.api-status { font-size: 12px; color: var(--text3); display: flex; align-items: center; gap: 6px; }
+.dot-status { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.dot-status.off { background: var(--red); }
+
+/* Panels */
+.panel { display: none; }
+.panel.active { display: block; }
+.page-title { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+.page-sub { font-size: 14px; color: var(--text2); margin-bottom: 1.75rem; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+.card-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; }
+
+/* Forms */
+label { font-size: 13px; color: var(--text2); display: block; margin-bottom: 5px; font-weight: 500; }
+input[type=text], input[type=date], input[type=password], select, textarea {
+  width: 100%; padding: 8px 11px; background: var(--bg); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); color: var(--text); font-size: 14px; transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue); }
+textarea { resize: vertical; }
+.form-row { margin-bottom: 1rem; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); transition: all 0.1s; }
+.btn:hover { background: var(--surface2); color: var(--text); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn-primary:hover { opacity: 0.85; background: var(--text); color: var(--bg); }
+.btn-danger { color: var(--red); border-color: var(--red-bg); }
+.btn-danger:hover { background: var(--red-bg); }
+.btn-sm { padding: 5px 11px; font-size: 13px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 1rem; }
+
+/* Category selector */
+.cat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.cat-opt { padding: 8px 6px; border: 1px solid var(--border2); border-radius: var(--radius-sm); cursor: pointer; text-align: center; font-size: 12px; font-weight: 500; color: var(--text2); background: var(--surface); transition: all 0.15s; }
+.cat-opt:hover { background: var(--surface2); }
+.cat-opt svg { display: block; margin: 0 auto 4px; width: 18px; height: 18px; opacity: 0.6; }
+.cat-opt.sel-1on1 { border-color: var(--blue); color: var(--blue-text); background: var(--blue-bg); }
+.cat-opt.sel-1on1 svg { opacity: 1; color: var(--blue); }
+.cat-opt.sel-client { border-color: var(--green); color: var(--green-text); background: var(--green-bg); }
+.cat-opt.sel-client svg { opacity: 1; color: var(--green); }
+.cat-opt.sel-internal { border-color: var(--amber); color: var(--amber-text); background: var(--amber-bg); }
+.cat-opt.sel-internal svg { opacity: 1; color: var(--amber); }
+.cat-opt.sel-project { border-color: var(--purple); color: var(--purple-text); background: var(--purple-bg); }
+.cat-opt.sel-project svg { opacity: 1; color: var(--purple); }
+.cat-opt.sel-other { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+.badge-1on1 { background: var(--blue-bg); color: var(--blue-text); }
+.badge-client { background: var(--green-bg); color: var(--green-text); }
+.badge-internal { background: var(--amber-bg); color: var(--amber-text); }
+.badge-project { background: var(--purple-bg); color: var(--purple-text); }
+.badge-other { background: var(--surface2); color: var(--text2); }
+.badge-risk { background: var(--red-bg); color: var(--red-text); }
+.badge-win { background: var(--green-bg); color: var(--green-text); }
+.badge-action { background: var(--amber-bg); color: var(--amber-text); }
+
+/* Drop zone */
+.drop-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius); padding: 1.5rem; text-align: center; cursor: pointer; transition: background 0.1s; }
+.drop-zone:hover, .drop-zone.over { background: var(--surface2); }
+.drop-icon { font-size: 24px; margin-bottom: 6px; color: var(--text3); }
+.drop-label { font-size: 14px; color: var(--text2); }
+.drop-sub { font-size: 12px; color: var(--text3); margin-top: 3px; }
+.file-pill { display: none; align-items: center; gap: 8px; background: var(--surface2); border-radius: var(--radius-sm); padding: 6px 10px; margin-top: 8px; font-size: 13px; }
+.file-pill.on { display: flex; }
+.rm-file { margin-left: auto; background: none; border: none; color: var(--text3); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; }
+.or-div { text-align: center; font-size: 12px; color: var(--text3); margin: 10px 0; }
+
+/* Spinner */
+.spinner { display: none; align-items: center; gap: 10px; padding: 1rem 0; font-size: 14px; color: var(--text2); }
+.spinner.on { display: flex; }
+.spin-dots { display: flex; gap: 4px; }
+.spin-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text2); animation: spindot 1.2s ease-in-out infinite; }
+.spin-dot:nth-child(2) { animation-delay: .2s; }
+.spin-dot:nth-child(3) { animation-delay: .4s; }
+@keyframes spindot { 0%,80%,100%{opacity:.2;}40%{opacity:1;} }
+
+/* Metrics grid */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+.metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+.metric-val { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+.metric-label { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+/* Note list */
+.note-list { display: flex; flex-direction: column; gap: 8px; }
+.note-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; cursor: pointer; transition: border-color 0.1s, box-shadow 0.1s; }
+.note-item:hover { border-color: var(--border2); box-shadow: var(--shadow); }
+.note-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+.note-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.note-meta { font-size: 12px; color: var(--text3); }
+.note-preview { font-size: 13px; color: var(--text2); line-height: 1.5; margin: 4px 0; }
+.note-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+/* Detail view */
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; gap: 1rem; }
+.detail-topic { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+.detail-meta { font-size: 13px; color: var(--text2); margin-top: 3px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; color: var(--text3); text-transform: uppercase; margin: 1.25rem 0 0.5rem; }
+.section-label:first-child { margin-top: 0; }
+.body-text { font-size: 14px; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
+
+/* Keywords */
+.kw-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.kw { font-size: 12px; padding: 3px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 99px; color: var(--text2); cursor: pointer; }
+.kw:hover { border-color: var(--border2); color: var(--text); }
+
+/* Search bar */
+.search-filters { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+.search-filters input { flex: 1; min-width: 180px; }
+.search-filters select { min-width: 130px; }
+
+/* AI result box */
+.ai-result { background: var(--surface2); border-radius: var(--radius); padding: 1.25rem; font-size: 14px; color: var(--text); line-height: 1.7; white-space: pre-wrap; display: none; margin-top: 1rem; }
+.ai-result.on { display: block; }
+
+/* Quick query chips */
+.query-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; }
+.chip { font-size: 12px; padding: 5px 12px; border: 1px solid var(--border2); border-radius: 99px; cursor: pointer; background: var(--surface); color: var(--text2); transition: all 0.1s; white-space: nowrap; }
+.chip:hover { background: var(--surface2); color: var(--text); }
+
+/* Trend card */
+.trend-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; margin-bottom: 8px; }
+.trend-topic { font-size: 14px; font-weight: 600; }
+.trend-detail { font-size: 13px; color: var(--text2); margin-top: 3px; line-height: 1.5; }
+
+/* Action tracker */
+.action-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.action-item:last-child { border-bottom: none; }
+.action-check { width: 18px; height: 18px; border: 1.5px solid var(--border2); border-radius: 4px; cursor: pointer; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+.action-check.done { background: var(--green); border-color: var(--green); }
+.action-check.done svg { display: block; }
+.action-check svg { display: none; width: 10px; height: 10px; color: white; }
+.action-text { flex: 1; font-size: 13px; color: var(--text); line-height: 1.5; }
+.action-text.done { text-decoration: line-through; color: var(--text3); }
+.action-from { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.action-age { font-size: 11px; padding: 2px 7px; border-radius: 99px; }
+.action-age.old { background: var(--red-bg); color: var(--red-text); }
+.action-age.mid { background: var(--amber-bg); color: var(--amber-text); }
+.action-age.new { background: var(--surface2); color: var(--text3); }
+
+/* Avatar */
+.avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+.av-1on1 { background: var(--blue-bg); color: var(--blue-text); }
+.av-client { background: var(--green-bg); color: var(--green-text); }
+.av-internal { background: var(--amber-bg); color: var(--amber-text); }
+.av-project { background: var(--purple-bg); color: var(--purple-text); }
+.av-other { background: var(--surface2); color: var(--text2); }
+
+/* Relationship map */
+.rel-list { display: flex; flex-direction: column; gap: 6px; }
+.rel-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; }
+.rel-connection { font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.rel-desc { color: var(--text2); line-height: 1.5; }
+
+/* Settings */
+.settings-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.settings-row:last-child { border-bottom: none; }
+.settings-label { font-size: 14px; font-weight: 500; }
+.settings-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+.modal-overlay.on { display: flex; }
+.modal { background: var(--surface); border-radius: var(--radius); padding: 1.5rem; width: 420px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+.modal h3 { font-size: 17px; font-weight: 600; margin-bottom: 0.5rem; }
+.modal p { font-size: 14px; color: var(--text2); margin-bottom: 1rem; line-height: 1.6; }
+
+/* Saved badge */
+.saved-badge { display: none; align-items: center; gap: 6px; font-size: 12px; color: var(--green); margin-top: 8px; }
+.saved-badge.on { display: flex; }
+
+/* Empty state */
+.empty { text-align: center; padding: 3rem 1rem; color: var(--text2); }
+.empty-icon { font-size: 32px; margin-bottom: 0.75rem; color: var(--text3); }
+.empty p { font-size: 14px; }
+
+/* Digest */
+.digest-section { margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+.digest-section:last-child { border-bottom: none; margin-bottom: 0; }
+.digest-head { font-size: 15px; font-weight: 600; margin-bottom: 0.5rem; }
+
+/* Toast */
+.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: var(--radius-sm); font-size: 13px; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.toast.on { opacity: 1; }
+
+@media (max-width: 700px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: fixed; bottom: 0; top: auto; left: 0; right: 0; height: auto; flex-direction: row; padding: 0; border-right: none; border-top: 1px solid var(--border); overflow-x: auto; z-index: 50; }
+  .logo, .nav-section, .sidebar-footer { display: none; }
+  .nav-item { padding: 12px 10px; font-size: 12px; flex-direction: column; gap: 3px; flex: 1; justify-content: center; align-items: center; }
+  .nav-item svg { width: 20px; height: 20px; }
+  .main { padding: 1rem; padding-bottom: 80px; }
+  .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+  .cat-grid { grid-template-columns: repeat(5, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+<!-- Sidebar -->
+<nav class="sidebar" role="navigation" aria-label="Main navigation">
+  <div class="logo">Meeting Notes <span>/ private</span></div>
+  <div class="nav-section">Capture</div>
+  <button class="nav-item active" onclick="showPanel('capture',this)" aria-current="page">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4Z"/></svg>
+    Capture
+  </button>
+  <div class="nav-section">Review</div>
+  <button class="nav-item" onclick="showPanel('history',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    History
+  </button>
+  <button class="nav-item" onclick="showPanel('search',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    Search
+  </button>
+  <button class="nav-item" onclick="showPanel('actions',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    Action Items
+  </button>
+  <div class="nav-section">Intelligence</div>
+  <button class="nav-item" onclick="showPanel('brief',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    Pre-Meeting Brief
+  </button>
+  <button class="nav-item" onclick="showPanel('trends',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Trends
+  </button>
+  <button class="nav-item" onclick="showPanel('digest',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+    Weekly Digest
+  </button>
+  <button class="nav-item" onclick="showPanel('relationships',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    Relationships
+  </button>
+  <button class="nav-item" onclick="showPanel('ask',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Ask AI
+  </button>
+  <div class="nav-section">Settings</div>
+  <button class="nav-item" onclick="showPanel('settings',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    Settings
+  </button>
+  <div class="sidebar-footer">
+    <div class="api-status"><div class="dot-status" id="api-dot"></div><span id="api-label">API key not set</span></div>
+  </div>
+</nav>
+
+<!-- Main content -->
+<main class="main" role="main">
+
+<!-- CAPTURE -->
+<div id="panel-capture" class="panel active">
+  <h1 class="page-title">Capture</h1>
+  <p class="page-sub">Upload a Teams transcript or paste notes. AI will structure and save everything locally.</p>
+
+  <div class="card">
+    <div class="card-title">Meeting category</div>
+    <div class="cat-grid" id="cat-grid">
+      <div class="cat-opt sel-1on1" data-cat="1:1" onclick="selectCat(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        1:1
+      </div>
+      <div class="cat-opt" data-cat="Client" onclick="selectCat(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+        Client
+      </div>
+      <div class="cat-opt" data-cat="Internal" onclick="selectCat(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Internal
+      </div>
+      <div class="cat-opt" data-cat="Project" onclick="selectCat(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+        Project
+      </div>
+      <div class="cat-opt" data-cat="Other" onclick="selectCat(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        Other
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:1rem;">
+    <div>
+      <div class="card">
+        <div class="form-row">
+          <label id="topic-label">Direct report</label>
+          <input type="text" id="topic" placeholder="e.g. Jordan Lee" autocomplete="off"/>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;" id="topic-hint">Name of the direct report</div>
+        </div>
+        <div class="form-row">
+          <label>Participants <span style="color:var(--text3);font-weight:400;">(optional)</span></label>
+          <input type="text" id="participants" placeholder="e.g. Sam, Jordan, Maria"/>
+        </div>
+        <div class="form-row">
+          <label>Date</label>
+          <input type="date" id="mdate"/>
+        </div>
+        <div class="form-row">
+          <label>Meeting type</label>
+          <select id="mtype">
+            <option>Weekly 1:1</option><option>Monthly check-in</option><option>Kickoff</option>
+            <option>Status update</option><option>Performance review</option>
+            <option>Planning session</option><option>Retrospective</option><option>Ad-hoc</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Your name in transcript</label>
+          <input type="text" id="myname" placeholder="e.g. Sam"/>
+        </div>
+        <div class="form-row" style="margin-bottom:0;">
+          <label>Focus areas <span style="color:var(--text3);font-weight:400;">(optional)</span></label>
+          <input type="text" id="focus" placeholder="e.g. blockers, career goals"/>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="form-row">
+          <label>Transcript or notes</label>
+          <div class="drop-zone" id="dz" onclick="document.getElementById('fi').click()">
+            <div class="drop-icon">↑</div>
+            <div class="drop-label">Drop .vtt or .txt transcript here</div>
+            <div class="drop-sub">Teams: meeting chat → download transcript</div>
+          </div>
+          <input type="file" id="fi" accept=".vtt,.txt" style="display:none"/>
+          <div class="file-pill" id="fpill">
+            <span style="font-size:16px;">📄</span><span id="fname"></span>
+            <button class="rm-file" onclick="clearFile()" aria-label="Remove file">×</button>
+          </div>
+        </div>
+        <div class="or-div">— or paste text / raw notes —</div>
+        <div class="form-row" style="margin-bottom:0;">
+          <textarea id="paste" placeholder="Paste transcript or rough notes here..." style="min-height:120px;"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="go-btn" onclick="runCapture()">✦ Summarize &amp; save</button>
+          <button class="btn" onclick="clearCapture()">Clear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spinner" id="cap-spinner">
+    <div class="spin-dots"><div class="spin-dot"></div><div class="spin-dot"></div><div class="spin-dot"></div></div>
+    <span id="cap-spin-label">Processing transcript...</span>
+  </div>
+
+  <!-- Result card -->
+  <div id="cap-result" style="display:none;">
+    <div class="card">
+      <div class="detail-header">
+        <div>
+          <div class="detail-topic" id="r-topic"></div>
+          <div class="detail-meta" id="r-meta"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-sm" onclick="copyLastResult()">Copy</button>
+          <button class="btn btn-sm" onclick="exportRowToClipboard()">Export row</button>
+        </div>
+      </div>
+      <div class="saved-badge on"><span style="color:var(--green)">✓</span> Saved to local notes</div>
+      <div class="section-label">Summary</div><div class="body-text" id="r-summary"></div>
+      <div class="section-label">Key topics</div><div class="body-text" id="r-topics"></div>
+      <div class="section-label">Action items</div><div class="body-text" id="r-actions"></div>
+      <div class="section-label">Decisions made</div><div class="body-text" id="r-decisions"></div>
+      <div class="section-label">Flags</div><div id="r-flags"></div>
+      <div class="section-label">Private notes</div><div class="body-text" id="r-private"></div>
+      <div class="section-label">Follow-up / next meeting</div><div class="body-text" id="r-followup"></div>
+      <div class="section-label">Keywords</div><div class="kw-list" id="r-keywords"></div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div id="panel-history" class="panel">
+  <h1 class="page-title">History</h1>
+  <p class="page-sub">All saved meeting notes, stored locally in this browser.</p>
+  <div class="metrics" id="h-metrics"></div>
+  <div class="search-filters">
+    <input type="text" placeholder="Filter notes..." id="h-search" oninput="renderHistory()"/>
+    <select id="h-cat" onchange="renderHistory()"><option value="">All categories</option><option>1:1</option><option>Client</option><option>Internal</option><option>Project</option><option>Other</option></select>
+    <select id="h-topic" onchange="renderHistory()"><option value="">All topics</option></select>
+  </div>
+  <div id="h-list"></div>
+  <div id="h-detail" style="display:none;"></div>
+</div>
+
+<!-- SEARCH -->
+<div id="panel-search" class="panel">
+  <h1 class="page-title">Search</h1>
+  <p class="page-sub">Keyword search across all notes. Use Ask AI for semantic / concept-based search.</p>
+  <div class="card">
+    <div class="search-filters" style="margin-bottom:0;">
+      <input type="text" placeholder="Search by keyword..." id="s-query" oninput="doSearch()"/>
+      <select id="s-cat" onchange="doSearch()"><option value="">All categories</option><option>1:1</option><option>Client</option><option>Internal</option><option>Project</option><option>Other</option></select>
+      <select id="s-topic" onchange="doSearch()"><option value="">All topics</option></select>
+      <select id="s-flag" onchange="doSearch()"><option value="">Any flag</option><option value="win">Wins</option><option value="risk">Risks</option><option value="action">Urgent</option></select>
+    </div>
+  </div>
+  <div id="s-results"></div>
+</div>
+
+<!-- ACTION ITEMS -->
+<div id="panel-actions" class="panel">
+  <h1 class="page-title">Action Items</h1>
+  <p class="page-sub">All action items extracted from your notes. Mark done as you complete them.</p>
+  <div class="search-filters">
+    <select id="a-topic" onchange="renderActions()"><option value="">All topics</option></select>
+    <select id="a-status" onchange="renderActions()"><option value="open">Open only</option><option value="all">All items</option></select>
+    <select id="a-age" onchange="renderActions()"><option value="">Any age</option><option value="overdue">Overdue (14+ days)</option><option value="mid">Mid (7–13 days)</option><option value="new">New (&lt;7 days)</option></select>
+  </div>
+  <div id="a-list"></div>
+</div>
+
+<!-- PRE-MEETING BRIEF -->
+<div id="panel-brief" class="panel">
+  <h1 class="page-title">Pre-Meeting Brief</h1>
+  <p class="page-sub">AI reads your note history for a person or topic and generates a prep brief for your next meeting.</p>
+  <div class="card">
+    <div class="form-grid">
+      <div class="form-row" style="margin-bottom:0;">
+        <label>Topic / person</label>
+        <select id="brief-topic"><option value="">Select...</option></select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;">
+        <label>Next meeting type</label>
+        <select id="brief-type">
+          <option>Weekly 1:1</option><option>Monthly check-in</option><option>Status update</option>
+          <option>Kickoff</option><option>Performance review</option><option>Planning session</option><option>Ad-hoc</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:1rem;margin-bottom:0;">
+      <label>Anything specific to prepare for? <span style="color:var(--text3);font-weight:400;">(optional)</span></label>
+      <input type="text" id="brief-context" placeholder="e.g. upcoming review cycle, contract renewal, Q3 planning"/>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="genBrief()">✦ Generate brief</button>
+    </div>
+  </div>
+  <div class="spinner" id="brief-spinner">
+    <div class="spin-dots"><div class="spin-dot"></div><div class="spin-dot"></div><div class="spin-dot"></div></div>
+    <span>Reading history and generating brief...</span>
+  </div>
+  <div class="ai-result" id="brief-result"></div>
+</div>
+
+<!-- TRENDS -->
+<div id="panel-trends" class="panel">
+  <h1 class="page-title">Trends</h1>
+  <p class="page-sub">AI-detected patterns across your notes over time.</p>
+  <div class="card">
+    <div class="form-grid">
+      <div class="form-row" style="margin-bottom:0;">
+        <label>Scope</label>
+        <select id="trend-scope">
+          <option value="all">Entire team / all topics</option>
+          <option value="1:1">1:1s only</option>
+          <option value="Client">Client meetings only</option>
+          <option value="Internal">Internal meetings only</option>
+          <option value="Project">Project meetings only</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin-bottom:0;">
+        <label>Time window</label>
+        <select id="trend-window">
+          <option value="30">Last 30 days</option>
+          <option value="60">Last 60 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="all">All time</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="genTrends()">✦ Detect trends</button>
+    </div>
+  </div>
+  <div class="spinner" id="trends-spinner">
+    <div class="spin-dots"><div class="spin-dot"></div><div class="spin-dot"></div><div class="spin-dot"></div></div>
+    <span>Analyzing patterns across your notes...</span>
+  </div>
+  <div class="ai-result" id="trends-result"></div>
+</div>
+
+<!-- WEEKLY DIGEST -->
+<div id="panel-digest" class="panel">
+  <h1 class="page-title">Weekly Digest</h1>
+  <p class="page-sub">A synthesized summary of everything that happened across your meetings this week.</p>
+  <div class="card">
+    <div class="form-grid">
+      <div class="form-row" style="margin-bottom:0;">
+        <label>Week ending</label>
+        <input type="date" id="digest-date"/>
+      </div>
+      <div class="form-row" style="margin-bottom:0;">
+        <label>Scope</label>
+        <select id="digest-scope">
+          <option value="all">All categories</option>
+          <option value="1:1">1:1s only</option>
+          <option value="Client">Client only</option>
+          <option value="Internal">Internal only</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="genDigest()">✦ Generate digest</button>
+      <button class="btn" onclick="copyDigest()">Copy digest</button>
+    </div>
+  </div>
+  <div class="spinner" id="digest-spinner">
+    <div class="spin-dots"><div class="spin-dot"></div><div class="spin-dot"></div><div class="spin-dot"></div></div>
+    <span>Generating weekly digest...</span>
+  </div>
+  <div class="ai-result" id="digest-result"></div>
+</div>
+
+<!-- RELATIONSHIPS -->
+<div id="panel-relationships" class="panel">
+  <h1 class="page-title">Relationships</h1>
+  <p class="page-sub">AI-detected connections across people, clients, and projects in your notes.</p>
+  <div class="card">
+    <div class="form-row" style="margin-bottom:0;">
+      <label>Focus on <span style="color:var(--text3);font-weight:400;">(optional — leave blank for full team view)</span></label>
+      <select id="rel-topic"><option value="">All topics</option></select>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="genRelationships()">✦ Map relationships</button>
+    </div>
+  </div>
+  <div class="spinner" id="rel-spinner">
+    <div class="spin-dots"><div class="spin-dot"></div><div class="spin-dot"></div><div class="spin-dot"></div></div>
+    <span>Mapping connections across your notes...</span>
+  </div>
+  <div class="ai-result" id="rel-result"></div>
+</div>
+
+<!-- ASK AI -->
+<div id="panel-ask" class="panel">
+  <h1 class="page-title">Ask AI</h1>
+  <p class="page-sub">Natural language questions across all your saved notes. Semantic understanding — not just keyword matching.</p>
+  <div class="card">
+    <div class="form-row">
+      <label>Your question</label>
+      <textarea id="ask-input" style="min-height:72px;" placeholder="e.g. Who has mentioned workload concerns in the last 60 days? What did I commit to in NLG meetings? What are Jordan's recurring themes this quarter?"></textarea>
+    </div>
+    <div class="query-chips">
+      <div class="chip" onclick="ask('What open action items do I own across all meetings?')">My open action items</div>
+      <div class="chip" onclick="ask('Who has mentioned workload, burnout, or capacity concerns recently?')">Workload concerns</div>
+      <div class="chip" onclick="ask('What risks or blockers have come up across all notes?')">Risks &amp; blockers</div>
+      <div class="chip" onclick="ask('What decisions were made in client meetings?')">Client decisions</div>
+      <div class="chip" onclick="ask('Summarize recurring themes across all 1:1s')">1:1 themes</div>
+      <div class="chip" onclick="ask('Who on the team seems most energized or engaged based on meeting notes?')">Team morale</div>
+      <div class="chip" onclick="ask('What topics keep coming up across multiple meetings?')">Recurring topics</div>
+    </div>
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn btn-primary" onclick="askAI()" id="ask-btn">✦ Ask</button>
+      <button class="btn" onclick="document.getElementById('ask-result').classList.remove('on');document.getElementById('ask-input').value=''">Clear</button>
+    </div>
+  </div>
+  <div class="spinner" id="ask-spinner">
+    <div class="spin-dots"><div class="spin-dot"></div><div class="spin-dot"></div><div class="spin-dot"></div></div>
+    <span>Analyzing your notes...</span>
+  </div>
+  <div class="ai-result" id="ask-result"></div>
+</div>
+
+<!-- SETTINGS -->
+<div id="panel-settings" class="panel">
+  <h1 class="page-title">Settings</h1>
+  <p class="page-sub">Configure your API key and manage your local data.</p>
+  <div class="card">
+    <div class="card-title">Anthropic API key</div>
+    <div class="form-row">
+      <label>API key</label>
+      <input type="password" id="api-key-input" placeholder="sk-ant-..."/>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:1rem;line-height:1.6;">Your key is stored only in this browser's localStorage. It's never sent anywhere except directly to the Anthropic API to process your transcripts. Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</p>
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn btn-primary" onclick="saveApiKey()">Save key</button>
+      <button class="btn btn-danger" onclick="clearApiKey()">Remove key</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Data management</div>
+    <div class="settings-row">
+      <div><div class="settings-label">Export JSON backup</div><div class="settings-desc">Download all notes as a JSON file</div></div>
+      <button class="btn btn-sm" onclick="exportJSON()">Download</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="settings-label">Export CSV</div><div class="settings-desc">Download all notes as a spreadsheet</div></div>
+      <button class="btn btn-sm" onclick="exportCSV()">Download</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="settings-label">Restore from backup</div><div class="settings-desc">Import a JSON backup file — merges with existing notes</div></div>
+      <button class="btn btn-sm" onclick="document.getElementById('import-fi').click()">Import</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="settings-label">Clear all notes</div><div class="settings-desc">Permanently delete all saved notes</div></div>
+      <button class="btn btn-sm btn-danger" onclick="clearAllNotes()">Clear all</button>
+    </div>
+    <input type="file" id="import-fi" accept=".json" style="display:none" onchange="doImport(this)"/>
+  </div>
+  <div class="card">
+    <div class="card-title">About</div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.7;">All notes are stored exclusively in your browser's <code style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px;">localStorage</code>. Nothing is sent to any server except the Anthropic API during summarization. The API key is stored locally and sent only to <code style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px;">api.anthropic.com</code>.</p>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- API key modal (first launch) -->
+<div class="modal-overlay" id="api-modal">
+  <div class="modal">
+    <h3>Welcome to Meeting Notes</h3>
+    <p>To summarize transcripts and use AI features, you need an Anthropic API key. Your key is stored only in this browser and never shared.</p>
+    <div class="form-row">
+      <label>API key</label>
+      <input type="password" id="modal-key" placeholder="sk-ant-..."/>
+    </div>
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn btn-primary" onclick="saveApiKeyFromModal()">Save &amp; continue</button>
+      <button class="btn" onclick="document.getElementById('api-modal').classList.remove('on')">Skip for now</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const STORE = 'meeting_notes_v3';
+const KEY_STORE = 'mn_api_key';
+const ACTIONS_STORE = 'mn_actions_v1';
+let notes = [];
+let actionStates = {}; // id -> {done: bool, doneAt: timestamp}
+let selectedCat = '1:1';
+
+function load() {
+  try { const s = localStorage.getItem(STORE); if (s) notes = JSON.parse(s); } catch(e) {}
+  try { const a = localStorage.getItem(ACTIONS_STORE); if (a) actionStates = JSON.parse(a); } catch(e) {}
+}
+function saveNotes() { try { localStorage.setItem(STORE, JSON.stringify(notes)); } catch(e) { toast('Storage full — export a backup'); } }
+function saveActions() { try { localStorage.setItem(ACTIONS_STORE, JSON.stringify(actionStates)); } catch(e) {} }
+function getApiKey() { return localStorage.getItem(KEY_STORE) || ''; }
+function saveApiKey() {
+  const k = document.getElementById('api-key-input').value.trim();
+  if (!k) { toast('Enter an API key'); return; }
+  localStorage.setItem(KEY_STORE, k);
+  updateApiStatus(); toast('API key saved');
+}
+function saveApiKeyFromModal() {
+  const k = document.getElementById('modal-key').value.trim();
+  if (!k) { toast('Enter an API key'); return; }
+  localStorage.setItem(KEY_STORE, k);
+  document.getElementById('api-modal').classList.remove('on');
+  updateApiStatus(); toast('API key saved');
+}
+function clearApiKey() { localStorage.removeItem(KEY_STORE); updateApiStatus(); toast('Key removed'); }
+function updateApiStatus() {
+  const key = getApiKey();
+  document.getElementById('api-dot').className = 'dot-status' + (key ? '' : ' off');
+  document.getElementById('api-label').textContent = key ? 'API key set' : 'API key not set';
+  if (document.getElementById('api-key-input')) document.getElementById('api-key-input').value = key;
+}
+load();
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+const today = () => new Date().toISOString().split('T')[0];
+document.getElementById('mdate').value = today();
+document.getElementById('digest-date').value = today();
+
+function getInitials(n) { return (n||'?').trim().split(/[\s\/\-]+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,2); }
+
+function catClass(cat) { return ({  '1:1':'1on1','Client':'client','Internal':'internal','Project':'project','Other':'other'})[cat]||'other'; }
+
+function badgeHtml(cat) { return `<span class="badge badge-${catClass(cat)}">${cat}</span>`; }
+
+function avatarHtml(topic, cat) { return `<div class="avatar av-${catClass(cat)}">${getInitials(topic)}</div>`; }
+
+function flagsHtml(flags) {
+  if (!flags || !flags.length) return '<span style="color:var(--text3);font-size:13px;">None</span>';
+  return flags.map(f => `<span class="badge badge-${f.type}">${f.label}</span>`).join(' ');
+}
+
+function kwHtml(keywords, onclick) {
+  return (keywords||[]).map(k => `<span class="kw" onclick="${onclick}('${k.replace(/'/g,"\\\'")}')">${k}</span>`).join('');
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+function daysBetween(dateStr) {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return Math.floor((now - d) / 86400000);
+}
+
+function ageClass(dateStr) {
+  const d = daysBetween(dateStr);
+  if (d >= 14) return 'old';
+  if (d >= 7) return 'mid';
+  return 'new';
+}
+
+function ageLabel(dateStr) {
+  const d = daysBetween(dateStr);
+  if (d === 0) return 'Today';
+  if (d === 1) return '1 day ago';
+  return `${d} days ago`;
+}
+
+function stripVTT(raw) {
+  return raw.replace(/WEBVTT[\s\S]*?\n\n/,'').replace(/\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}[^\n]*/g,'').replace(/<[^>]+>/g,'').replace(/^\d+\s*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
+}
+
+function updateSelects() {
+  const topics = [...new Set(notes.map(n=>n.topic))].sort();
+  ['h-topic','s-topic','a-topic','brief-topic','rel-topic'].forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    const cur = el.value;
+    el.innerHTML = (id === 'brief-topic' ? '<option value="">Select...</option>' : '<option value="">All topics</option>') +
+      topics.map(t => `<option value="${t}"${t===cur?' selected':''}>${t}</option>`).join('');
+  });
+}
+
+// ─── Navigation ──────────────────────────────────────────────────────────────
+function showPanel(id, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
+  document.getElementById('panel-' + id).classList.add('active');
+  el.classList.add('active'); el.setAttribute('aria-current','page');
+  if (id === 'history') { updateSelects(); renderHistory(); }
+  if (id === 'search') { updateSelects(); doSearch(); }
+  if (id === 'actions') { updateSelects(); renderActions(); }
+  if (id === 'brief' || id === 'relationships') updateSelects();
+  if (id === 'settings') updateApiStatus();
+}
+
+// ─── Category selector ───────────────────────────────────────────────────────
+const CAT_META = {
+  '1:1':     { label: 'Direct report',        hint: 'Name of the direct report',                   type: 'Weekly 1:1' },
+  'Client':  { label: 'Client / company',     hint: 'Client or company name (e.g. NLG, Manulife)', type: 'Status update' },
+  'Internal':{ label: 'Meeting / initiative', hint: 'Team or initiative name',                     type: 'Status update' },
+  'Project': { label: 'Project name',         hint: 'Project or workstream name',                  type: 'Planning session' },
+  'Other':   { label: 'Topic',                hint: 'Topic, person, or any descriptor',            type: 'Ad-hoc' }
+};
+
+function selectCat(el) {
+  document.querySelectorAll('.cat-opt').forEach(o => o.className = 'cat-opt');
+  const cat = el.dataset.cat;
+  const key = ({  '1:1':'sel-1on1','Client':'sel-client','Internal':'sel-internal','Project':'sel-project','Other':'sel-other'})[cat];
+  el.classList.add(key);
+  selectedCat = cat;
+  const m = CAT_META[cat];
+  document.getElementById('topic-label').textContent = m.label;
+  document.getElementById('topic-hint').textContent = m.hint;
+  document.getElementById('mtype').value = m.type;
+}
+
+// ─── File handling ────────────────────────────────────────────────────────────
+let fileText = '';
+const dz = document.getElementById('dz'), fi = document.getElementById('fi');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+fi.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(f) {
+  document.getElementById('fname').textContent = f.name;
+  document.getElementById('fpill').classList.add('on');
+  const r = new FileReader(); r.onload = e => { fileText = e.target.result; }; r.readAsText(f);
+}
+function clearFile() { fileText = ''; fi.value = ''; document.getElementById('fpill').classList.remove('on'); }
+function clearCapture() { clearFile(); document.getElementById('paste').value = ''; document.getElementById('cap-result').style.display = 'none'; }
+
+// ─── API call ─────────────────────────────────────────────────────────────────
+async function callClaude(prompt, maxTokens = 1200) {
+  const key = getApiKey();
+  if (!key) { document.getElementById('api-modal').classList.add('on'); throw new Error('No API key'); }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error'); }
+  const data = await res.json();
+  return data.content.map(b => b.text || '').join('');
+}
+
+function notesContext(subset) {
+  return (subset || notes).map(n =>
+    `---\nCategory: ${n.cat} | Topic: ${n.topic} | Date: ${n.date} | Type: ${n.type}${n.participants ? ` | Participants: ${n.participants}` : ''}\nSummary: ${n.summary}\nTopics: ${(n.topics||[]).join('; ')}\nActions: ${(n.actions||[]).join('; ')}\nDecisions: ${(n.decisions||[]).join('; ')}\nFlags: ${(n.flags||[]).map(f=>f.label+'('+f.type+')').join(', ')}\nKeywords: ${(n.keywords||[]).join(', ')}\nCoaching/private: ${n.private||''}`
+  ).join('\n');
+}
+
+// ─── Capture & Summarize ─────────────────────────────────────────────────────
+async function runCapture() {
+  const topic = document.getElementById('topic').value.trim();
+  const mdate = document.getElementById('mdate').value;
+  const mtype = document.getElementById('mtype').value;
+  const myname = document.getElementById('myname').value.trim();
+  const focus = document.getElementById('focus').value.trim();
+  const participants = document.getElementById('participants').value.trim();
+  const pasted = document.getElementById('paste').value.trim();
+  let transcript = fileText || pasted;
+
+  if (!transcript) { toast('Upload or paste a transcript first'); return; }
+  if (!topic) { toast('Enter a topic or name'); return; }
+  if (transcript.includes('-->')) transcript = stripVTT(transcript);
+  if (transcript.length > 28000) transcript = transcript.slice(0, 28000) + '\n[truncated]';
+
+  document.getElementById('cap-spinner').classList.add('on');
+  document.getElementById('cap-result').style.display = 'none';
+  document.getElementById('go-btn').disabled = true;
+
+  const steps = ['Processing transcript...','Identifying themes...','Extracting actions...','Generating summary...'];
+  let si = 0; const sl = document.getElementById('cap-spin-label');
+  const tick = setInterval(() => { si = (si+1) % steps.length; sl.textContent = steps[si]; }, 2000);
+
+  const catCtx = {
+    '1:1': `1:1 between manager and direct report "${topic}". Focus on progress, blockers, morale, development. Private notes = coaching observations for manager only.`,
+    'Client': `Client meeting with "${topic}". Focus on client needs, commitments, risks, next steps. Private notes = internal observations not for client.`,
+    'Internal': `Internal meeting: "${topic}". Focus on decisions, actions, alignment. Private notes = sensitive political observations.`,
+    'Project': `Project meeting for "${topic}". Focus on status, blockers, decisions, delivery risk. Private notes = concerns about timeline or team dynamics.`,
+    'Other': `Meeting about "${topic}". Focus on key outcomes, decisions, follow-ups.`
+  };
+
+  const prompt = `You are a meeting notes assistant. Analyze this ${selectedCat} meeting transcript/notes and return ONLY valid JSON, no markdown:
+{
+  "summary": "3-4 sentence narrative",
+  "topics": ["Topic 1: brief desc"],
+  "actions": ["Action item (owner)"],
+  "decisions": ["Decision made"],
+  "flags": [{"label": "short text", "type": "win|risk|action"}],
+  "private": "1-2 sentence private observation for note-taker only",
+  "followup": ["Item for next meeting"],
+  "keywords": ["kw1","kw2","kw3","kw4","kw5"]
+}
+Context: ${catCtx[selectedCat]}${myname ? `\nNote-taker: "${myname}"` : ''}${participants ? `\nParticipants: ${participants}` : ''}${focus ? `\nFocus on: ${focus}` : ''}
+Rules: max 3 flags (win=achievement, risk=concern/blocker, action=urgent); keywords=5-8 theme tags; decisions only if clear ones were made; be concise.
+
+${transcript}`;
+
+  try {
+    const raw = await callClaude(prompt);
+    const p = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const entry = {
+      id: Date.now(), cat: selectedCat, topic, participants, date: mdate, type: mtype,
+      summary: p.summary||'', topics: p.topics||[], actions: p.actions||[], decisions: p.decisions||[],
+      flags: p.flags||[], private: p.private||'', followup: p.followup||[], keywords: p.keywords||[]
+    };
+    notes.unshift(entry); saveNotes();
+    renderCaptureResult(entry);
+    document.getElementById('cap-result').style.display = 'block';
+    updateSelects(); toast('Saved');
+  } catch(e) { toast('Error: ' + e.message); console.error(e); }
+  clearInterval(tick);
+  document.getElementById('cap-spinner').classList.remove('on');
+  document.getElementById('go-btn').disabled = false;
+}
+
+function renderCaptureResult(e) {
+  document.getElementById('r-topic').textContent = e.topic;
+  document.getElementById('r-meta').innerHTML = `${badgeHtml(e.cat)} <span>${e.type}</span> <span>·</span> <span>${e.date}</span>${e.participants ? `<span>· w/ ${e.participants}</span>` : ''}`;
+  document.getElementById('r-summary').textContent = e.summary || '—';
+  document.getElementById('r-topics').textContent = (e.topics||[]).map((t,i)=>`${i+1}. ${t}`).join('\n') || '—';
+  document.getElementById('r-actions').textContent = (e.actions||[]).map((a,i)=>`${i+1}. ${a}`).join('\n') || 'None';
+  document.getElementById('r-decisions').textContent = (e.decisions||[]).map((d,i)=>`${i+1}. ${d}`).join('\n') || 'None';
+  document.getElementById('r-flags').innerHTML = flagsHtml(e.flags);
+  document.getElementById('r-private').textContent = e.private || '—';
+  document.getElementById('r-followup').textContent = (e.followup||[]).map(f=>`• ${f}`).join('\n') || '—';
+  document.getElementById('r-keywords').innerHTML = kwHtml(e.keywords, 'searchKw');
+}
+
+function searchKw(kw) {
+  document.querySelectorAll('.nav-item')[2].click();
+  document.getElementById('s-query').value = kw; doSearch();
+}
+
+function copyLastResult() {
+  if (!notes.length) return;
+  navigator.clipboard.writeText(entryToText(notes[0])); toast('Copied');
+}
+
+function exportRowToClipboard() {
+  if (!notes.length) return;
+  const e = notes[0];
+  const esc = v => `"${String(v||'').replace(/"/g,'""')}"`;
+  const row = [e.date,e.cat,e.topic,e.participants||'',e.type,e.summary,(e.topics||[]).join('; '),(e.actions||[]).join('; '),(e.decisions||[]).join('; '),(e.flags||[]).map(f=>f.label).join(', '),(e.keywords||[]).join(', ')].map(esc).join(',');
+  navigator.clipboard.writeText(row); toast('Row copied — paste into Excel');
+}
+
+// ─── History ──────────────────────────────────────────────────────────────────
+function renderMetrics() {
+  const total = notes.length;
+  const cats = {};
+  notes.forEach(n => { cats[n.cat] = (cats[n.cat]||0)+1; });
+  const risks = notes.reduce((a,n) => a + (n.flags||[]).filter(f=>f.type==='risk').length, 0);
+  const openActions = getAllOpenActions().length;
+  document.getElementById('h-metrics').innerHTML = `
+    <div class="metric"><div class="metric-val">${total}</div><div class="metric-label">Total notes</div></div>
+    <div class="metric"><div class="metric-val">${openActions}</div><div class="metric-label">Open actions</div></div>
+    <div class="metric"><div class="metric-val">${risks}</div><div class="metric-label">Risk flags</div></div>
+    <div class="metric"><div class="metric-val">${Object.keys(cats).length}</div><div class="metric-label">Categories</div></div>`;
+}
+
+function renderHistory() {
+  renderMetrics();
+  const q = (document.getElementById('h-search').value||'').toLowerCase();
+  const cat = document.getElementById('h-cat').value;
+  const topic = document.getElementById('h-topic').value;
+  const detail = document.getElementById('h-detail');
+  if (detail.style.display !== 'none') return;
+  let filtered = notes.filter(n => {
+    if (cat && n.cat !== cat) return false;
+    if (topic && n.topic !== topic) return false;
+    if (q) { const hay = [n.topic,n.summary,...(n.keywords||[]),...(n.topics||[]),...(n.actions||[]),n.participants||''].join(' ').toLowerCase(); if (!hay.includes(q)) return false; }
+    return true;
+  });
+  const list = document.getElementById('h-list');
+  if (!filtered.length) { list.innerHTML = `<div class="empty"><div class="empty-icon">○</div><p>${q||cat||topic?'No notes match your filters.':'No notes yet. Capture your first meeting to get started.'}</p></div>`; return; }
+  list.innerHTML = filtered.map(n => {
+    const idx = notes.indexOf(n);
+    return `<div class="note-item" onclick="openDetail(${idx})">
+      <div class="note-top">
+        <div>
+          <span class="note-name">${n.topic}</span>${n.participants ? `<span style="font-size:12px;color:var(--text3);margin-left:6px;">w/ ${n.participants}</span>` : ''}
+        </div>
+        <span class="note-meta">${n.date}</span>
+      </div>
+      <div class="note-meta" style="margin-bottom:4px;">${badgeHtml(n.cat)} <span>${n.type}</span></div>
+      <div class="note-preview">${(n.summary||'').slice(0,140)}${(n.summary||'').length>140?'…':''}</div>
+      <div class="note-tags">${flagsHtml(n.flags)} ${(n.keywords||[]).slice(0,4).map(k=>`<span class="kw" style="cursor:default;">${k}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+function openDetail(idx) {
+  const e = notes[idx];
+  document.getElementById('h-list').style.display = 'none';
+  document.getElementById('h-metrics').style.display = 'none';
+  document.querySelectorAll('.search-filters')[0].style.display = 'none';
+  const d = document.getElementById('h-detail');
+  d.style.display = 'block';
+  d.innerHTML = `
+    <button class="btn btn-sm" style="margin-bottom:1rem;" onclick="closeDetail()">← Back</button>
+    <div class="card">
+      <div class="detail-header">
+        <div>
+          <div class="detail-topic">${e.topic}${e.participants?`<span style="font-size:14px;font-weight:400;color:var(--text2);margin-left:8px;">w/ ${e.participants}</span>`:''}</div>
+          <div class="detail-meta">${badgeHtml(e.cat)} <span>${e.type}</span> <span>·</span> <span>${e.date}</span></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-sm" onclick="copyEntry(${idx})">Copy</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteEntry(${idx})">Delete</button>
+        </div>
+      </div>
+      <div class="section-label">Summary</div><div class="body-text">${e.summary||'—'}</div>
+      <div class="section-label">Key topics</div><div class="body-text">${(e.topics||[]).map((t,i)=>`${i+1}. ${t}`).join('\n')||'—'}</div>
+      <div class="section-label">Action items</div><div class="body-text">${(e.actions||[]).map((a,i)=>`${i+1}. ${a}`).join('\n')||'None'}</div>
+      <div class="section-label">Decisions made</div><div class="body-text">${(e.decisions||[]).map((d,i)=>`${i+1}. ${d}`).join('\n')||'None'}</div>
+      <div class="section-label">Flags</div><div>${flagsHtml(e.flags)}</div>
+      <div class="section-label">Private notes</div><div class="body-text">${e.private||'—'}</div>
+      <div class="section-label">Follow-up / next meeting</div><div class="body-text">${(e.followup||[]).map(f=>`• ${f}`).join('\n')||'—'}</div>
+      <div class="section-label">Keywords</div><div class="kw-list">${kwHtml(e.keywords,'searchKw')}</div>
+    </div>`;
+}
+
+function closeDetail() {
+  document.getElementById('h-list').style.display = '';
+  document.getElementById('h-metrics').style.display = '';
+  document.querySelectorAll('.search-filters')[0].style.display = '';
+  document.getElementById('h-detail').style.display = 'none';
+  renderHistory();
+}
+
+function copyEntry(idx) { navigator.clipboard.writeText(entryToText(notes[idx])); toast('Copied'); }
+
+function deleteEntry(idx) {
+  if (!confirm('Delete this note?')) return;
+  notes.splice(idx, 1); saveNotes(); closeDetail(); updateSelects(); toast('Deleted');
+}
+
+// ─── Search ───────────────────────────────────────────────────────────────────
+function doSearch() {
+  const q = (document.getElementById('s-query').value||'').toLowerCase();
+  const cat = document.getElementById('s-cat').value;
+  const topic = document.getElementById('s-topic').value;
+  const flag = document.getElementById('s-flag').value;
+  let filtered = notes.filter(n => {
+    if (cat && n.cat !== cat) return false;
+    if (topic && n.topic !== topic) return false;
+    if (flag && !(n.flags||[]).some(f=>f.type===flag)) return false;
+    if (q) { const hay = [n.topic,n.summary,...(n.keywords||[]),...(n.topics||[]),...(n.actions||[]),...(n.decisions||[]),n.participants||'',n.private||''].filter(Boolean).join(' ').toLowerCase(); if (!hay.includes(q)) return false; }
+    return true;
+  });
+  const res = document.getElementById('s-results');
+  if (!filtered.length) { res.innerHTML = `<div class="empty"><div class="empty-icon">○</div><p>${q||cat||topic||flag?'No matching notes.':'Enter a search term or apply a filter above.'}</p></div>`; return; }
+  res.innerHTML = filtered.map(n => {
+    const idx = notes.indexOf(n);
+    let preview = n.summary || '';
+    if (q && preview.toLowerCase().includes(q)) { const i = preview.toLowerCase().indexOf(q); const st = Math.max(0,i-50); preview = (st>0?'…':'')+preview.slice(st,i+q.length+80)+(i+q.length+80<preview.length?'…':''); }
+    else { preview = preview.slice(0,140)+(preview.length>140?'…':''); }
+    return `<div class="note-item" onclick="openHistoryDetail(${idx})">
+      <div class="note-top"><span class="note-name">${n.topic}</span><span class="note-meta">${n.date}</span></div>
+      <div class="note-meta" style="margin-bottom:4px;">${badgeHtml(n.cat)} <span>${n.type}</span></div>
+      <div class="note-preview">${preview}</div>
+      <div class="note-tags">${flagsHtml(n.flags)}</div>
+    </div>`;
+  }).join('');
+}
+
+function openHistoryDetail(idx) {
+  document.querySelectorAll('.nav-item')[1].click();
+  setTimeout(() => openDetail(idx), 50);
+}
+
+// ─── Action Items ─────────────────────────────────────────────────────────────
+function getAllOpenActions() {
+  const all = [];
+  notes.forEach(n => {
+    (n.actions||[]).forEach((a,i) => {
+      const id = `${n.id}_${i}`;
+      all.push({ id, text: a, topic: n.topic, cat: n.cat, date: n.date, done: actionStates[id]?.done || false });
+    });
+  });
+  return all.filter(a => !a.done);
+}
+
+function renderActions() {
+  const topicF = document.getElementById('a-topic').value;
+  const statusF = document.getElementById('a-status').value;
+  const ageF = document.getElementById('a-age').value;
+
+  let all = [];
+  notes.forEach(n => {
+    (n.actions||[]).forEach((a,i) => {
+      const id = `${n.id}_${i}`;
+      all.push({ id, text: a, topic: n.topic, cat: n.cat, date: n.date, done: actionStates[id]?.done||false });
+    });
+  });
+
+  let filtered = all.filter(a => {
+    if (topicF && a.topic !== topicF) return false;
+    if (statusF === 'open' && a.done) return false;
+    if (ageF && !a.done) {
+      const ag = ageClass(a.date);
+      if (ageF !== ag) return false;
+    }
+    return true;
+  });
+
+  const list = document.getElementById('a-list');
+  if (!filtered.length) { list.innerHTML = `<div class="empty"><div class="empty-icon">✓</div><p>${statusF==='open'?'No open action items. All clear!':'No action items found.'}</p></div>`; return; }
+
+  const grouped = {};
+  filtered.forEach(a => { if (!grouped[a.topic]) grouped[a.topic] = []; grouped[a.topic].push(a); });
+
+  list.innerHTML = Object.entries(grouped).map(([topic, actions]) => `
+    <div class="card" style="margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        ${avatarHtml(topic, actions[0].cat)}
+        <div>
+          <div style="font-size:14px;font-weight:600;">${topic}</div>
+          <div style="font-size:12px;color:var(--text3);">${badgeHtml(actions[0].cat)}</div>
+        </div>
+      </div>
+      ${actions.map(a => `
+        <div class="action-item">
+          <div class="action-check ${a.done?'done':''}" onclick="toggleAction('${a.id}', this)" role="checkbox" aria-checked="${a.done}" tabindex="0">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="2 6 5 9 10 3"/></svg>
+          </div>
+          <div>
+            <div class="action-text ${a.done?'done':''}">${a.text}</div>
+            <div class="action-from">${a.date} · ${a.cat} meeting ${!a.done ? `<span class="action-age ${ageClass(a.date)}">${ageLabel(a.date)}</span>` : ''}</div>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function toggleAction(id, el) {
+  const isDone = !el.classList.contains('done');
+  if (!actionStates[id]) actionStates[id] = {};
+  actionStates[id].done = isDone;
+  actionStates[id].doneAt = isDone ? Date.now() : null;
+  saveActions();
+  renderActions();
+}
+
+// ─── Pre-Meeting Brief ────────────────────────────────────────────────────────
+async function genBrief() {
+  const topic = document.getElementById('brief-topic').value;
+  const type = document.getElementById('brief-type').value;
+  const context = document.getElementById('brief-context').value.trim();
+  if (!topic) { toast('Select a topic/person first'); return; }
+
+  const relevant = notes.filter(n => n.topic === topic).slice(0, 15);
+  if (!relevant.length) { toast('No notes found for this topic'); return; }
+
+  document.getElementById('brief-spinner').classList.add('on');
+  document.getElementById('brief-result').classList.remove('on');
+  document.getElementById('brief-result').textContent = '';
+
+  const prompt = `You are preparing a manager for an upcoming ${type} meeting with/about "${topic}".
+
+Based on the meeting history below, generate a concise pre-meeting brief with these sections:
+1. Context snapshot — where things stand based on recent notes (2-3 sentences)
+2. Last meeting recap — what was discussed and decided last time
+3. Open action items — what's still outstanding (yours and theirs)
+4. Watch for — themes, morale signals, or patterns to stay aware of
+5. Suggested agenda — 3-5 recommended discussion points for this meeting
+6. Good questions to ask — 2-3 specific questions based on recent history
+${context ? `\nAdditional context for this meeting: ${context}` : ''}
+
+Be specific and reference actual details from the notes. Write in a direct, practical manager tone. No fluff.
+
+Meeting history for "${topic}" (most recent first):
+${notesContext(relevant)}`;
+
+  try {
+    const result = await callClaude(prompt, 1000);
+    document.getElementById('brief-result').textContent = result;
+    document.getElementById('brief-result').classList.add('on');
+  } catch(e) { toast('Error: ' + e.message); }
+  document.getElementById('brief-spinner').classList.remove('on');
+}
+
+// ─── Trends ───────────────────────────────────────────────────────────────────
+async function genTrends() {
+  const scope = document.getElementById('trend-scope').value;
+  const window = document.getElementById('trend-window').value;
+
+  let subset = notes;
+  if (scope !== 'all') subset = subset.filter(n => n.cat === scope);
+  if (window !== 'all') {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - parseInt(window));
+    subset = subset.filter(n => new Date(n.date) >= cutoff);
+  }
+
+  if (!subset.length) { toast('No notes in this scope/window'); return; }
+
+  document.getElementById('trends-spinner').classList.add('on');
+  document.getElementById('trends-result').classList.remove('on');
+
+  const prompt = `You are analyzing a manager's meeting notes to surface patterns and trends.
+
+Analyze the notes below and identify:
+1. Recurring themes — topics that keep coming up across multiple meetings/people
+2. Risk signals — concerns, blockers, or morale issues appearing with frequency
+3. Momentum areas — things consistently going well
+4. Attention gaps — topics or people that haven't been discussed recently but probably should be
+5. Cross-meeting patterns — connections between different meetings that reveal something important
+
+For each finding, cite specific people, dates, or meetings that support it. Be analytical, not generic. Write 1-3 sentences per finding. Skip any category where there's genuinely nothing notable.
+
+Notes (scope: ${scope === 'all' ? 'all categories' : scope}, window: ${window === 'all' ? 'all time' : `last ${window} days`}, ${subset.length} meetings):
+${notesContext(subset).slice(0, 24000)}`;
+
+  try {
+    const result = await callClaude(prompt, 1200);
+    document.getElementById('trends-result').textContent = result;
+    document.getElementById('trends-result').classList.add('on');
+  } catch(e) { toast('Error: ' + e.message); }
+  document.getElementById('trends-spinner').classList.remove('on');
+}
+
+// ─── Weekly Digest ────────────────────────────────────────────────────────────
+async function genDigest() {
+  const dateStr = document.getElementById('digest-date').value;
+  const scope = document.getElementById('digest-scope').value;
+  if (!dateStr) { toast('Select a week-ending date'); return; }
+
+  const end = new Date(dateStr);
+  const start = new Date(end); start.setDate(start.getDate() - 6);
+
+  let subset = notes.filter(n => { const d = new Date(n.date); return d >= start && d <= end; });
+  if (scope !== 'all') subset = subset.filter(n => n.cat === scope);
+
+  if (!subset.length) { toast('No notes found for this period'); return; }
+
+  document.getElementById('digest-spinner').classList.add('on');
+  document.getElementById('digest-result').classList.remove('on');
+
+  const prompt = `Generate a weekly meeting digest for a manager covering the week of ${start.toDateString()} to ${end.toDateString()}.
+
+Write it in a clean memo format with these sections:
+**This week in meetings** — 2-3 sentence narrative of the week overall
+**Key decisions made** — bulleted list of decisions across all meetings
+**Action items created** — bulleted list of all action items with owners
+**Wins & highlights** — positive flags and achievements
+**Risks & concerns** — anything flagged as a risk or blocker
+**Carry into next week** — open threads and follow-ups to prioritize
+
+Be specific. Reference names, meeting types, and dates. Write as if this will be used as a personal weekly record.
+
+${subset.length} meetings this week:
+${notesContext(subset)}`;
+
+  try {
+    const result = await callClaude(prompt, 1000);
+    document.getElementById('digest-result').textContent = result;
+    document.getElementById('digest-result').classList.add('on');
+  } catch(e) { toast('Error: ' + e.message); }
+  document.getElementById('digest-spinner').classList.remove('on');
+}
+
+function copyDigest() {
+  const el = document.getElementById('digest-result');
+  if (!el.textContent) { toast('Generate a digest first'); return; }
+  navigator.clipboard.writeText(el.textContent); toast('Digest copied');
+}
+
+// ─── Relationships ────────────────────────────────────────────────────────────
+async function genRelationships() {
+  const topic = document.getElementById('rel-topic').value;
+  const subset = topic ? notes.filter(n => n.topic === topic || [n.participants||''].join().includes(topic)) : notes;
+  if (subset.length < 2) { toast('Need at least 2 notes to map relationships'); return; }
+
+  document.getElementById('rel-spinner').classList.add('on');
+  document.getElementById('rel-result').classList.remove('on');
+
+  const prompt = `You are a meeting intelligence assistant. Analyze the meeting notes below and identify meaningful connections and relationships.
+
+Look for:
+1. People or topics that appear across multiple different meetings — what's the connection?
+2. Clients/projects mentioned in 1:1s with team members — who is involved in what?
+3. Issues or themes that connect different meetings
+4. People who seem to collaborate or are referenced together
+5. Any surprising or non-obvious connections worth a manager's attention
+
+${topic ? `Focus especially on connections involving "${topic}".` : 'Look across all people and topics.'}
+
+For each connection you find, write it as:
+[Person/Topic A] ↔ [Person/Topic B]: [explanation of the connection and why it matters]
+
+Only surface genuinely interesting connections — not obvious ones (like the same person appearing in their own 1:1s). Be specific and cite the relevant meetings.
+
+Notes (${subset.length} total):
+${notesContext(subset).slice(0, 24000)}`;
+
+  try {
+    const result = await callClaude(prompt, 1000);
+    document.getElementById('rel-result').textContent = result;
+    document.getElementById('rel-result').classList.add('on');
+  } catch(e) { toast('Error: ' + e.message); }
+  document.getElementById('rel-spinner').classList.remove('on');
+}
+
+// ─── Ask AI ───────────────────────────────────────────────────────────────────
+function ask(q) { document.getElementById('ask-input').value = q; askAI(); }
+
+async function askAI() {
+  if (!notes.length) { toast('No notes saved yet'); return; }
+  const question = document.getElementById('ask-input').value.trim();
+  if (!question) { toast('Enter a question first'); return; }
+
+  document.getElementById('ask-spinner').classList.add('on');
+  document.getElementById('ask-result').classList.remove('on');
+  document.getElementById('ask-btn').disabled = true;
+
+  const prompt = `You are a meeting intelligence assistant with access to a manager's private meeting notes across 1:1s, client calls, internal meetings, and project discussions.
+
+Answer the manager's question based only on the notes provided. Be specific — cite names, topics, and dates where relevant. Use semantic understanding: if they ask about "burnout" also consider notes mentioning "overloaded," "stretched thin," "capacity issues," etc. Be direct and concise. If the notes don't contain enough information to answer, say so honestly.
+
+Question: ${question}
+
+Notes (${notes.length} total):
+${notesContext().slice(0, 24000)}`;
+
+  try {
+    const result = await callClaude(prompt, 1000);
+    document.getElementById('ask-result').textContent = result;
+    document.getElementById('ask-result').classList.add('on');
+  } catch(e) { toast('Error: ' + e.message); }
+  document.getElementById('ask-spinner').classList.remove('on');
+  document.getElementById('ask-btn').disabled = false;
+}
+
+// ─── Export / Import ──────────────────────────────────────────────────────────
+function entryToText(e) {
+  return `${e.topic} — ${e.date} (${e.cat} / ${e.type})\n\nSummary:\n${e.summary}\n\nTopics:\n${(e.topics||[]).join('\n')}\n\nAction Items:\n${(e.actions||[]).join('\n')}\n\nDecisions:\n${(e.decisions||[]).join('\n')}\n\nPrivate:\n${e.private}\n\nFollow-up:\n${(e.followup||[]).join('\n')}`;
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `meeting-notes-backup-${today()}.json`; a.click(); toast('Downloaded');
+}
+
+function exportCSV() {
+  const h = ['Date','Category','Topic','Participants','Type','Summary','KeyTopics','Actions','Decisions','Flags','Keywords'];
+  const esc = v => `"${String(v||'').replace(/"/g,'""')}"`;
+  const rows = notes.map(n => [n.date,n.cat,n.topic,n.participants||'',n.type,n.summary,(n.topics||[]).join('; '),(n.actions||[]).join('; '),(n.decisions||[]).join('; '),(n.flags||[]).map(f=>f.label).join(', '),(n.keywords||[]).join(', ')].map(esc).join(','));
+  const blob = new Blob([[h.join(','),...rows].join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `meeting-notes-${today()}.csv`; a.click(); toast('Downloaded');
+}
+
+function doImport(input) {
+  const f = input.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const imp = JSON.parse(e.target.result);
+      if (!Array.isArray(imp)) throw new Error();
+      if (confirm(`Import ${imp.length} notes? Merges with existing ${notes.length} notes.`)) {
+        const ex = new Set(notes.map(n=>n.id));
+        imp.forEach(n => { if (!ex.has(n.id)) notes.push(n); });
+        notes.sort((a,b) => b.date.localeCompare(a.date));
+        saveNotes(); updateSelects(); toast(`Imported ${imp.length} notes`);
+      }
+    } catch(err) { toast('Invalid backup file'); }
+  };
+  r.readAsText(f); input.value = '';
+}
+
+function clearAllNotes() {
+  if (!confirm('Delete ALL notes? This cannot be undone.')) return;
+  notes = []; saveNotes(); updateSelects(); renderHistory(); toast('All notes cleared');
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+updateApiStatus();
+updateSelects();
+renderMetrics();
+if (!getApiKey()) document.getElementById('api-modal').classList.add('on');
+</script>
+</body>
+</html>
