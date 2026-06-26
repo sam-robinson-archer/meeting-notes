@@ -241,6 +241,36 @@ textarea { resize: vertical; }
 .due-overdue { color: var(--red-text); font-weight: 500; }
 .due-soon { color: var(--amber-text); font-weight: 500; }
 .due-ok { color: var(--green-text); }
+/* Ad-hoc action grid */
+.adhoc-grid { width: 100%; border-collapse: collapse; font-size: 13px; }
+.adhoc-grid th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text3); padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.adhoc-grid td { padding: 4px 4px; vertical-align: middle; border-bottom: 0.5px solid var(--border); }
+.adhoc-grid tr:last-child td { border-bottom: none; }
+.adhoc-grid td input, .adhoc-grid td select { font-size: 13px; padding: 5px 7px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
+.adhoc-grid td input:focus, .adhoc-grid td select:focus { outline: none; border-color: var(--blue); }
+.adhoc-grid td input.ad-desc { width: 100%; }
+.adhoc-grid td input.ad-assignee { width: 110px; }
+.adhoc-grid td input.ad-due { width: 130px; }
+.adhoc-grid td select.ad-cat { width: 100px; }
+.adhoc-grid td button { padding: 4px 8px; font-size: 12px; }
+.add-row-btn { font-size: 12px; margin-top: 8px; }
+/* Capture queue */
+.cap-queue { margin-top: 1.5rem; }
+.cap-queue-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.cap-queue-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
+.cap-queue-item { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+.cap-queue-item:last-child { border-bottom: none; }
+.cap-queue-check { width: 16px; height: 16px; border: 1.5px solid var(--border2); border-radius: 3px; cursor: pointer; flex-shrink: 0; accent-color: var(--blue); margin-top: 1px; }
+.cap-queue-text { flex: 1; color: var(--text); line-height: 1.4; }
+.cap-queue-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.action-select { width: 16px; height: 16px; border: 1.5px solid var(--border2); border-radius: 3px; cursor: pointer; flex-shrink: 0; accent-color: var(--blue); margin-top: 2px; }
+.bulk-toolbar { display: none; align-items: center; gap: 10px; padding: 8px 14px; background: var(--blue-bg); border: 1px solid var(--blue); border-radius: var(--radius-sm); margin-bottom: 10px; font-size: 13px; flex-wrap: wrap; }
+.bulk-toolbar.on { display: flex; }
+.bulk-count { font-weight: 600; color: var(--blue-text); flex: 1; }
+.reassign-input { font-size: 13px; padding: 4px 8px; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); width: 140px; }
+.action-assignee-edit { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+.action-assignee-edit input { font-size: 11px; padding: 1px 6px; border: 0.5px solid var(--border2); border-radius: 4px; background: var(--bg); color: var(--text); width: 110px; }
+.action-assignee-edit input:focus { outline: none; border-color: var(--blue); }
 .action-age { font-size: 11px; padding: 2px 7px; border-radius: 99px; }
 .action-age.old { background: var(--red-bg); color: var(--red-text); }
 .action-age.mid { background: var(--amber-bg); color: var(--amber-text); }
@@ -489,6 +519,20 @@ textarea { resize: vertical; }
       <div class="section-label">Keywords</div><div class="kw-list" id="r-keywords"></div>
     </div>
   </div>
+
+  <!-- My action queue -->
+  <div class="cap-queue card" id="cap-queue-card">
+    <div class="cap-queue-head">
+      <span class="cap-queue-title">My action queue</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="cq-assignee" onchange="renderCaptureQueue()" style="font-size:13px;padding:4px 8px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);">
+          <option value="">All assignees</option>
+        </select>
+        <button class="btn btn-sm" onclick="showPanel('actions', document.querySelectorAll('.nav-item')[3])">View all ↗</button>
+      </div>
+    </div>
+    <div id="cap-queue-list"><div class="empty" style="padding:1rem 0;"><p>No open action items yet.</p></div></div>
+  </div>
 </div>
 
 <!-- HISTORY -->
@@ -524,11 +568,45 @@ textarea { resize: vertical; }
 <div id="panel-actions" class="panel">
   <h1 class="page-title">Action Items</h1>
   <p class="page-sub">All action items extracted from your notes. Mark done as you complete them.</p>
+
+  <!-- Ad-hoc entry grid -->
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="card-title">Add action items</div>
+    <table class="adhoc-grid" id="adhoc-grid">
+      <thead>
+        <tr>
+          <th style="width:40%;">Description</th>
+          <th style="width:14%;">Assignee</th>
+          <th style="width:13%;">Category</th>
+          <th style="width:13%;">Due date</th>
+          <th style="width:16%;">Topic</th>
+          <th style="width:4%;"></th>
+        </tr>
+      </thead>
+      <tbody id="adhoc-rows">
+        <!-- rows injected by JS -->
+      </tbody>
+    </table>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn add-row-btn" onclick="addAdhocRow()">+ Add row</button>
+      <button class="btn btn-primary btn-sm" onclick="saveAdhocRows()">✦ Save all</button>
+    </div>
+  </div>
+
   <div class="search-filters">
     <select id="a-topic" onchange="renderActions()"><option value="">All topics</option></select>
     <select id="a-assignee" onchange="renderActions()"><option value="">All assignees</option></select>
     <select id="a-status" onchange="renderActions()"><option value="open">Open only</option><option value="all">All items</option></select>
     <select id="a-age" onchange="renderActions()"><option value="">Any due date</option><option value="overdue">Overdue (past due date)</option><option value="this-week">Due this week</option><option value="next-week">Due next week</option><option value="no-date">No due date set</option></select>
+  </div>
+  <div class="bulk-toolbar" id="bulk-toolbar">
+    <span class="bulk-count" id="bulk-count">0 selected</span>
+    <span style="font-size:12px;color:var(--blue-text);">Reassign to:</span>
+    <input class="reassign-input" id="bulk-reassign-input" placeholder="Name..." list="assignee-datalist"/>
+    <datalist id="assignee-datalist"></datalist>
+    <button class="btn btn-sm" onclick="bulkReassign()">Reassign</button>
+    <button class="btn btn-sm btn-danger" onclick="bulkDelete()">Delete selected</button>
+    <button class="btn btn-sm" onclick="clearSelection()">Cancel</button>
   </div>
   <div id="a-list"></div>
 </div>
@@ -856,9 +934,10 @@ function showPanel(id, el) {
   el.classList.add('active'); el.setAttribute('aria-current','page');
   if (id === 'history') { updateSelects(); renderHistory(); }
   if (id === 'search') { updateSelects(); doSearch(); }
-  if (id === 'actions') { updateSelects(); renderActions(); }
+  if (id === 'actions') { updateSelects(); renderActions(); renderAdhocGrid(); }
   if (id === 'brief' || id === 'relationships') updateSelects();
   if (id === 'settings') updateApiStatus();
+  if (id === 'capture') renderCaptureQueue();
 }
 
 // ─── Category selector ───────────────────────────────────────────────────────
@@ -1150,7 +1229,7 @@ ${transcript}`;
     notes.unshift(entry); saveNotes();
     renderCaptureResult(entry);
     document.getElementById('cap-result').style.display = 'block';
-    updateSelects(); toast('Saved');
+    updateSelects(); renderCaptureQueue(); toast('Saved');
   } catch(e) { toast('Error: ' + e.message); console.error(e); }
   clearInterval(tick);
   document.getElementById('cap-spinner').classList.remove('on');
@@ -1346,6 +1425,110 @@ function updateAssigneeSelect() {
     assignees.map(a => `<option value="${a}"${a===cur?' selected':''}>${a}</option>`).join('');
 }
 
+let selectedActions = new Set(); // tracks selected action ids for bulk ops
+
+function updateBulkToolbar() {
+  const tb = document.getElementById('bulk-toolbar');
+  const cnt = document.getElementById('bulk-count');
+  if (selectedActions.size > 0) {
+    tb.classList.add('on');
+    cnt.textContent = `${selectedActions.size} selected`;
+    // populate datalist with known assignees
+    const all = buildActionsList();
+    const assignees = [...new Set(all.map(a => a.assignee).filter(Boolean))].sort();
+    document.getElementById('assignee-datalist').innerHTML = assignees.map(a => `<option value="${a}">`).join('');
+  } else {
+    tb.classList.remove('on');
+  }
+}
+
+function toggleSelect(id, cb) {
+  if (cb.checked) selectedActions.add(id);
+  else selectedActions.delete(id);
+  updateBulkToolbar();
+}
+
+function clearSelection() {
+  selectedActions.clear();
+  updateBulkToolbar();
+  renderActions();
+}
+
+function toggleGroupSelect(masterCb, ids) {
+  ids.forEach(id => { if (masterCb.checked) selectedActions.add(id); else selectedActions.delete(id); });
+  updateBulkToolbar();
+  renderActions();
+}
+
+function bulkDelete() {
+  if (!selectedActions.size) return;
+  if (!confirm(`Delete ${selectedActions.size} action item${selectedActions.size!==1?'s':''}? This cannot be undone.`)) return;
+  // Build list of {noteId, actionIdx} sorted by actionIdx descending so splicing doesn't shift indices
+  const all = buildActionsList();
+  const toDelete = all.filter(a => selectedActions.has(a.id));
+  // Group by note, sort each group descending by actionIdx
+  const byNote = {};
+  toDelete.forEach(a => {
+    if (!byNote[a.noteId]) byNote[a.noteId] = [];
+    byNote[a.noteId].push(a.actionIdx);
+  });
+  Object.entries(byNote).forEach(([noteId, idxs]) => {
+    const note = notes.find(n => n.id === Number(noteId));
+    if (!note) return;
+    idxs.sort((a,b) => b-a).forEach(idx => note.actions.splice(idx, 1));
+  });
+  // Clean actionStates
+  toDelete.forEach(a => { delete actionStates[a.id]; });
+  saveNotes(); saveActions();
+  selectedActions.clear();
+  updateBulkToolbar();
+  renderActions();
+  toast(`${toDelete.length} action item${toDelete.length!==1?'s':''} deleted`);
+}
+
+function bulkReassign() {
+  const newAssignee = document.getElementById('bulk-reassign-input').value.trim();
+  if (!newAssignee) { toast('Enter a name to reassign to'); return; }
+  if (!selectedActions.size) return;
+  const all = buildActionsList();
+  const toReassign = all.filter(a => selectedActions.has(a.id));
+  toReassign.forEach(a => {
+    const note = notes.find(n => n.id === Number(a.noteId));
+    if (!note) return;
+    // Replace or append owner in "(owner)" pattern
+    const currentText = note.actions[a.actionIdx];
+    const hasOwner = /\([^)]+\)\s*$/.test(currentText);
+    note.actions[a.actionIdx] = hasOwner
+      ? currentText.replace(/\([^)]+\)\s*$/, `(${newAssignee})`)
+      : `${currentText} (${newAssignee})`;
+  });
+  saveNotes();
+  selectedActions.clear();
+  document.getElementById('bulk-reassign-input').value = '';
+  updateBulkToolbar();
+  renderActions();
+  toast(`${toReassign.length} item${toReassign.length!==1?'s':''} reassigned to ${newAssignee}`);
+}
+
+function inlineReassign(id, noteId, actionIdx, inputEl) {
+  const newAssignee = inputEl.value.trim();
+  const note = notes.find(n => n.id === Number(noteId));
+  if (!note) return;
+  const currentText = note.actions[actionIdx];
+  const hasOwner = /\([^)]+\)\s*$/.test(currentText);
+  if (newAssignee) {
+    note.actions[actionIdx] = hasOwner
+      ? currentText.replace(/\([^)]+\)\s*$/, `(${newAssignee})`)
+      : `${currentText} (${newAssignee})`;
+  } else {
+    // Clear assignee
+    note.actions[actionIdx] = currentText.replace(/\s*\([^)]+\)\s*$/, '').trim();
+  }
+  saveNotes();
+  renderActions();
+  toast('Reassigned');
+}
+
 function renderActions() {
   updateAssigneeSelect();
   const topicF = document.getElementById('a-topic').value;
@@ -1366,9 +1549,12 @@ function renderActions() {
   });
 
   const list = document.getElementById('a-list');
-  if (!filtered.length) { list.innerHTML = `<div class="empty"><div class="empty-icon">✓</div><p>${statusF==='open'?'No open action items. All clear!':'No action items found.'}</p></div>`; return; }
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">✓</div><p>${statusF==='open'?'No open action items. All clear!':'No action items found.'}</p></div>`;
+    updateBulkToolbar();
+    return;
+  }
 
-  // When filtering by assignee, group by assignee instead of topic
   const groupKey = assigneeF ? 'assignee' : 'topic';
   const grouped = {};
   filtered.forEach(a => {
@@ -1377,7 +1563,12 @@ function renderActions() {
     grouped[key].push(a);
   });
 
-  list.innerHTML = Object.entries(grouped).map(([groupName, actions]) => {
+  // Known assignees for datalist on inline inputs
+  const knownAssignees = [...new Set(all.map(a => a.assignee).filter(Boolean))].sort();
+  const datalistOpts = knownAssignees.map(a => `<option value="${a}">`).join('');
+
+  list.innerHTML = `<datalist id="inline-assignee-list">${datalistOpts}</datalist>` +
+    Object.entries(grouped).map(([groupName, actions]) => {
     const firstNote = actions[0];
     const headerAvatar = assigneeF
       ? `<div class="avatar" style="background:var(--purple-bg);color:var(--purple-text);">${getInitials(groupName)}</div>`
@@ -1389,29 +1580,41 @@ function renderActions() {
     <div class="card" style="margin-bottom:8px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
         ${headerAvatar}
-        <div>
+        <div style="flex:1;">
           <div style="font-size:14px;font-weight:600;">${groupName}</div>
           ${headerSub}
         </div>
+        <label style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:5px;cursor:pointer;">
+          <input type="checkbox" onchange="toggleGroupSelect(this, [${actions.map(a=>"'"+a.id+"'").join(',')}])" style="accent-color:var(--blue);cursor:pointer;" />
+          All
+        </label>
       </div>
       ${actions.map(a => {
-        const assigneeBadge = assigneeF ? '' : (a.assignee ? `<span style="font-size:11px;padding:1px 7px;border-radius:99px;background:var(--purple-bg);color:var(--purple-text);margin-left:4px;">${a.assignee}</span>` : '');
+        const isSelected = selectedActions.has(a.id);
         const topicBadge = assigneeF ? `<span style="font-size:11px;color:var(--text3);margin-right:4px;">${a.topic} ·</span>` : '';
+        const dueBlock = !a.done ? `
+          <span class="action-due">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" width="11" height="11" aria-hidden="true"><rect x="1" y="2" width="12" height="11" rx="1.5"/><line x1="4" y1="1" x2="4" y2="3"/><line x1="10" y1="1" x2="10" y2="3"/><line x1="1" y1="5" x2="13" y2="5"/></svg>
+            <input type="date" value="${a.dueDate||''}" onchange="setDueDate('${a.id}', this.value)" title="Set due date" />
+            ${a.dueDate && dueDateStatus(a.dueDate) ? `<span class="${dueDateStatus(a.dueDate).cls}">${dueDateStatus(a.dueDate).label}</span>` : ''}
+          </span>` : '';
         return `
-        <div class="action-item">
+        <div class="action-item" style="${isSelected?'background:var(--blue-bg);border-radius:var(--radius-sm);padding-left:6px;':''}">
+          <input type="checkbox" class="action-select" ${isSelected?'checked':''} onchange="toggleSelect('${a.id}', this)" aria-label="Select action item" />
           <div class="action-check ${a.done?'done':''}" onclick="toggleAction('${a.id}', this)" role="checkbox" aria-checked="${a.done}" tabindex="0">
             <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="2 6 5 9 10 3"/></svg>
           </div>
           <div style="flex:1;">
-            <div class="action-text ${a.done?'done':''}">${a.text}${assigneeBadge}</div>
+            <div class="action-text ${a.done?'done':''}">${a.text.replace(/\s*\([^)]+\)\s*$/, '')}</div>
             <div class="action-from">
               ${topicBadge}${a.date} · ${a.cat} meeting
-              ${!a.done ? `
-                <span class="action-due">
-                  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" width="11" height="11" aria-hidden="true"><rect x="1" y="2" width="12" height="11" rx="1.5"/><line x1="4" y1="1" x2="4" y2="3"/><line x1="10" y1="1" x2="10" y2="3"/><line x1="1" y1="5" x2="13" y2="5"/></svg>
-                  <input type="date" value="${a.dueDate||''}" onchange="setDueDate('${a.id}', this.value)" title="Set due date" />
-                  ${a.dueDate && dueDateStatus(a.dueDate) ? `<span class="${dueDateStatus(a.dueDate).cls}">${dueDateStatus(a.dueDate).label}</span>` : ''}
-                </span>` : ''}
+              ${dueBlock}
+            </div>
+            <div class="action-assignee-edit">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" width="11" height="11" aria-hidden="true"><path d="M9 2a2 2 0 110 4 2 2 0 010-4z"/><path d="M13 12c0-2.21-1.79-4-4-4s-4 1.79-4 4"/><path d="M1 12c0-1.66 1.34-3 3-3"/><circle cx="3" cy="6" r="2"/></svg>
+              <input type="text" value="${a.assignee||''}" placeholder="Assignee..." list="inline-assignee-list"
+                onblur="inlineReassign('${a.id}', '${a.noteId}', ${a.actionIdx}, this)"
+                onkeydown="if(event.key==='Enter'){this.blur();}" />
             </div>
           </div>
           <button class="action-del" onclick="deleteAction('${a.noteId}', ${a.actionIdx})" aria-label="Delete action item" title="Delete">
@@ -1421,6 +1624,8 @@ function renderActions() {
       }).join('')}
     </div>`;
   }).join('');
+
+  updateBulkToolbar();
 }
 
 function toggleAction(id, el) {
@@ -1724,9 +1929,159 @@ function clearAllNotes() {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
+// ─── Ad-hoc action item grid ─────────────────────────────────────────────────
+const ADHOC_STORE = 'mn_adhoc_v1';
+let adhocRows = [];
+
+function loadAdhoc() {
+  try { const s = localStorage.getItem(ADHOC_STORE); if (s) adhocRows = JSON.parse(s); } catch(e) {}
+}
+function saveAdhoc() {
+  try { localStorage.setItem(ADHOC_STORE, JSON.stringify(adhocRows)); } catch(e) {}
+}
+loadAdhoc();
+
+function addAdhocRow(desc='', assignee='', cat='', due='', topic='') {
+  const row = { id: Date.now() + Math.random(), desc, assignee, cat: cat||'1:1', due, topic };
+  adhocRows.push(row);
+  renderAdhocGrid();
+}
+
+function removeAdhocRow(id) {
+  adhocRows = adhocRows.filter(r => r.id !== id);
+  renderAdhocGrid();
+}
+
+function renderAdhocGrid() {
+  const topics = [...new Set(notes.map(n => n.topic))].sort();
+  const topicOpts = topics.map(t => `<option value="${t}">${t}</option>`).join('');
+  const cats = ['1:1','Client','Internal','Project','Other','Document'];
+  const catOpts = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+
+  const tbody = document.getElementById('adhoc-rows');
+  if (!tbody) return;
+  if (!adhocRows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:10px 8px;color:var(--text3);font-size:13px;">No rows yet — click + Add row to start</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = adhocRows.map(r => `
+    <tr data-id="${r.id}">
+      <td><input class="ad-desc" type="text" value="${r.desc||''}" placeholder="Action item description..." onchange="updateAdhocField(${r.id},'desc',this.value)"/></td>
+      <td><input class="ad-assignee" type="text" value="${r.assignee||''}" placeholder="Assignee..." list="inline-assignee-list" onchange="updateAdhocField(${r.id},'assignee',this.value)"/></td>
+      <td><select class="ad-cat" onchange="updateAdhocField(${r.id},'cat',this.value)">${cats.map(c=>`<option value="${c}"${c===r.cat?' selected':''}>${c}</option>`).join('')}</select></td>
+      <td><input class="ad-due" type="date" value="${r.due||''}" onchange="updateAdhocField(${r.id},'due',this.value)"/></td>
+      <td><select onchange="updateAdhocField(${r.id},'topic',this.value)" style="width:100%;font-size:13px;padding:5px 7px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);">
+        <option value="">— select —</option>${topicOpts.replace(`value="${r.topic}"`,`value="${r.topic}" selected`)}
+      </select></td>
+      <td><button class="btn btn-sm btn-danger" style="padding:4px 7px;" onclick="removeAdhocRow(${r.id})" title="Remove row">✕</button></td>
+    </tr>`).join('');
+}
+
+function updateAdhocField(id, field, value) {
+  const row = adhocRows.find(r => r.id === id);
+  if (row) { row[field] = value; saveAdhoc(); }
+}
+
+function saveAdhocRows() {
+  const valid = adhocRows.filter(r => r.desc && r.desc.trim() && r.topic);
+  if (!valid.length) { toast('Fill in Description and Topic for at least one row'); return; }
+  const invalid = adhocRows.filter(r => !r.desc || !r.desc.trim() || !r.topic);
+
+  valid.forEach(r => {
+    // Find or create an "Ad-hoc" note for this topic
+    let note = notes.find(n => n.topic === r.topic && n.type === 'Ad-hoc (manual)');
+    if (!note) {
+      note = {
+        id: Date.now() + Math.random(),
+        cat: r.cat || '1:1', topic: r.topic, participants: '', date: today(),
+        type: 'Ad-hoc (manual)', summary: 'Manually added action items', topics: [],
+        actions: [], decisions: [], flags: [], private: '', followup: [], keywords: ['manual','ad-hoc']
+      };
+      notes.unshift(note);
+    }
+    const actionText = r.assignee ? `${r.desc.trim()} (${r.assignee.trim()})` : r.desc.trim();
+    note.actions.push(actionText);
+    // Store due date in actionStates
+    if (r.due) {
+      const actionIdx = note.actions.length - 1;
+      const actionId = `${note.id}_${actionIdx}`;
+      if (!actionStates[actionId]) actionStates[actionId] = {};
+      actionStates[actionId].dueDate = r.due;
+    }
+  });
+
+  saveNotes(); saveActions();
+  adhocRows = invalid; // keep rows that weren't valid so user can fix
+  saveAdhoc();
+  renderAdhocGrid();
+  renderCaptureQueue();
+  updateSelects();
+  toast(`${valid.length} action item${valid.length!==1?'s':''} saved`);
+}
+
+// ─── Capture page action queue ────────────────────────────────────────────────
+function renderCaptureQueue() {
+  const el = document.getElementById('cap-queue-list');
+  if (!el) return;
+
+  // Populate assignee filter from known assignees
+  const allActions = buildActionsList();
+  const assignees = [...new Set(allActions.map(a => a.assignee).filter(Boolean))].sort();
+  const cqSel = document.getElementById('cq-assignee');
+  if (cqSel) {
+    const cur = cqSel.value;
+    cqSel.innerHTML = '<option value="">All assignees</option>' +
+      assignees.map(a => `<option value="${a}"${a===cur?' selected':''}>${a}</option>`).join('');
+    // Default to myname if set and not already filtered
+    if (!cur) {
+      const myname = (document.getElementById('myname')?.value||'').trim();
+      if (myname) {
+        const match = assignees.find(a => a.toLowerCase().includes(myname.toLowerCase().split(' ')[0]));
+        if (match) cqSel.value = match;
+      }
+    }
+  }
+
+  const assigneeF = cqSel ? cqSel.value : '';
+  let open = allActions.filter(a => !a.done);
+  if (assigneeF) open = open.filter(a => a.assignee === assigneeF);
+
+  // Sort: overdue first, then by due date, then undated
+  open.sort((a, b) => {
+    const aHas = !!a.dueDate, bHas = !!b.dueDate;
+    if (!aHas && !bHas) return 0;
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+    return new Date(a.dueDate) - new Date(b.dueDate);
+  });
+
+  if (!open.length) {
+    el.innerHTML = `<div style="padding:.75rem 0;font-size:13px;color:var(--text3);">No open action items${assigneeF ? ' for ' + assigneeF : ''}.</div>`;
+    return;
+  }
+
+  el.innerHTML = open.slice(0, 20).map(a => {
+    const ds = a.dueDate ? dueDateStatus(a.dueDate) : null;
+    return `<div class="cap-queue-item">
+      <input type="checkbox" class="cap-queue-check" onchange="toggleAction('${a.id}', {classList:{contains:()=>false,add:()=>{},remove:()=>{}}}); renderCaptureQueue();" title="Mark done"/>
+      <div style="flex:1;">
+        <div class="cap-queue-text">${a.text.replace(/\s*\([^)]+\)\s*$/, '')}</div>
+        <div class="cap-queue-meta">
+          ${badgeHtml(a.cat)} ${a.topic} · ${a.date}
+          ${a.assignee ? `<span style="color:var(--purple-text);margin-left:4px;">${a.assignee}</span>` : ''}
+          ${ds ? `<span class="${ds.cls}" style="margin-left:6px;">${ds.label}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('') + (open.length > 20 ? `<div style="font-size:12px;color:var(--text3);padding:6px 0;">+ ${open.length-20} more — <button class="btn btn-sm" style="font-size:12px;padding:2px 8px;" onclick="showPanel('actions',document.querySelectorAll('.nav-item')[3])">View all</button></div>` : '');
+}
+
 updateApiStatus();
 updateSelects();
 renderMetrics();
+addAdhocRow(); // start with one blank row
+renderAdhocGrid();
+renderCaptureQueue();
 if (!getApiKey()) document.getElementById('api-modal').classList.add('on');
 </script>
 </body>
