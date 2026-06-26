@@ -235,6 +235,12 @@ textarea { resize: vertical; }
 .action-del { background: none; border: none; color: var(--text3); cursor: pointer; padding: 2px 5px; border-radius: var(--radius-sm); font-size: 14px; line-height: 1; flex-shrink: 0; margin-top: 0; opacity: 0; transition: opacity 0.15s; }
 .action-item:hover .action-del { opacity: 1; }
 .action-del:hover { color: var(--red); background: var(--red-bg); }
+.action-due { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; margin-left: 6px; }
+.action-due input[type=date] { font-size: 11px; padding: 1px 4px; border: 0.5px solid var(--border2); border-radius: 4px; background: var(--bg); color: var(--text2); cursor: pointer; width: auto; }
+.action-due input[type=date]:focus { outline: none; border-color: var(--blue); }
+.due-overdue { color: var(--red-text); font-weight: 500; }
+.due-soon { color: var(--amber-text); font-weight: 500; }
+.due-ok { color: var(--green-text); }
 .action-age { font-size: 11px; padding: 2px 7px; border-radius: 99px; }
 .action-age.old { background: var(--red-bg); color: var(--red-text); }
 .action-age.mid { background: var(--amber-bg); color: var(--amber-text); }
@@ -522,7 +528,7 @@ textarea { resize: vertical; }
     <select id="a-topic" onchange="renderActions()"><option value="">All topics</option></select>
     <select id="a-assignee" onchange="renderActions()"><option value="">All assignees</option></select>
     <select id="a-status" onchange="renderActions()"><option value="open">Open only</option><option value="all">All items</option></select>
-    <select id="a-age" onchange="renderActions()"><option value="">Any age</option><option value="overdue">Overdue (14+ days)</option><option value="mid">Mid (7–13 days)</option><option value="new">New (&lt;7 days)</option></select>
+    <select id="a-age" onchange="renderActions()"><option value="">Any due date</option><option value="overdue">Overdue (past due date)</option><option value="this-week">Due this week</option><option value="next-week">Due next week</option><option value="no-date">No due date set</option></select>
   </div>
   <div id="a-list"></div>
 </div>
@@ -1320,7 +1326,7 @@ function buildActionsList() {
     (n.actions||[]).forEach((a,i) => {
       const id = `${n.id}_${i}`;
       const assignee = parseAssignee(a);
-      all.push({ id, text: a, assignee, topic: n.topic, cat: n.cat, date: n.date, done: actionStates[id]?.done||false, noteId: n.id, actionIdx: i });
+      all.push({ id, text: a, assignee, topic: n.topic, cat: n.cat, date: n.date, done: actionStates[id]?.done||false, noteId: n.id, actionIdx: i, dueDate: actionStates[id]?.dueDate||'' });
     });
   });
   return all;
@@ -1354,8 +1360,7 @@ function renderActions() {
     if (assigneeF && a.assignee !== assigneeF) return false;
     if (statusF === 'open' && a.done) return false;
     if (ageF && !a.done) {
-      const ag = ageClass(a.date);
-      if (ageF !== ag) return false;
+      if (!getDueFilterMatch(a, ageF)) return false;
     }
     return true;
   });
@@ -1399,7 +1404,15 @@ function renderActions() {
           </div>
           <div style="flex:1;">
             <div class="action-text ${a.done?'done':''}">${a.text}${assigneeBadge}</div>
-            <div class="action-from">${topicBadge}${a.date} · ${a.cat} meeting ${!a.done ? `<span class="action-age ${ageClass(a.date)}">${ageLabel(a.date)}</span>` : ''}</div>
+            <div class="action-from">
+              ${topicBadge}${a.date} · ${a.cat} meeting
+              ${!a.done ? `
+                <span class="action-due">
+                  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" width="11" height="11" aria-hidden="true"><rect x="1" y="2" width="12" height="11" rx="1.5"/><line x1="4" y1="1" x2="4" y2="3"/><line x1="10" y1="1" x2="10" y2="3"/><line x1="1" y1="5" x2="13" y2="5"/></svg>
+                  <input type="date" value="${a.dueDate||''}" onchange="setDueDate('${a.id}', this.value)" title="Set due date" />
+                  ${a.dueDate && dueDateStatus(a.dueDate) ? `<span class="${dueDateStatus(a.dueDate).cls}">${dueDateStatus(a.dueDate).label}</span>` : ''}
+                </span>` : ''}
+            </div>
           </div>
           <button class="action-del" onclick="deleteAction('${a.noteId}', ${a.actionIdx})" aria-label="Delete action item" title="Delete">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" width="14" height="14"><polyline points="3 3 11 11"/><polyline points="11 3 3 11"/></svg>
@@ -1419,8 +1432,40 @@ function toggleAction(id, el) {
   renderActions();
 }
 
+function setDueDate(id, dateVal) {
+  if (!actionStates[id]) actionStates[id] = {};
+  actionStates[id].dueDate = dateVal;
+  saveActions();
+  renderActions();
+}
+
+function dueDateStatus(dueDate) {
+  if (!dueDate) return null;
+  const due = new Date(dueDate);
+  const now = new Date();
+  now.setHours(0,0,0,0); due.setHours(0,0,0,0);
+  const diff = Math.floor((due - now) / 86400000);
+  if (diff < 0) return { cls: 'due-overdue', label: `Overdue by ${Math.abs(diff)}d` };
+  if (diff === 0) return { cls: 'due-overdue', label: 'Due today' };
+  if (diff <= 7) return { cls: 'due-soon', label: `Due in ${diff}d` };
+  return { cls: 'due-ok', label: `Due ${due.toLocaleDateString('en-US',{month:'short',day:'numeric'})}` };
+}
+
+function getDueFilterMatch(a, ageF) {
+  if (!ageF) return true;
+  if (ageF === 'no-date') return !a.dueDate;
+  if (!a.dueDate) return false;
+  const due = new Date(a.dueDate); due.setHours(0,0,0,0);
+  const now = new Date(); now.setHours(0,0,0,0);
+  const diff = Math.floor((due - now) / 86400000);
+  if (ageF === 'overdue') return diff < 0;
+  if (ageF === 'this-week') return diff >= 0 && diff <= 7;
+  if (ageF === 'next-week') return diff > 7 && diff <= 14;
+  return true;
+}
+
 function deleteAction(noteId, actionIdx) {
-  const noteIdx = notes.findIndex(n => n.id === noteId);
+  const noteIdx = notes.findIndex(n => n.id === Number(noteId));
   if (noteIdx === -1) return;
   const note = notes[noteIdx];
   const actionText = note.actions[actionIdx];
