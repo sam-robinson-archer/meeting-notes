@@ -232,6 +232,9 @@ textarea { resize: vertical; }
 .action-text { flex: 1; font-size: 13px; color: var(--text); line-height: 1.5; }
 .action-text.done { text-decoration: line-through; color: var(--text3); }
 .action-from { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.action-del { background: none; border: none; color: var(--text3); cursor: pointer; padding: 2px 5px; border-radius: var(--radius-sm); font-size: 14px; line-height: 1; flex-shrink: 0; margin-top: 0; opacity: 0; transition: opacity 0.15s; }
+.action-item:hover .action-del { opacity: 1; }
+.action-del:hover { color: var(--red); background: var(--red-bg); }
 .action-age { font-size: 11px; padding: 2px 7px; border-radius: 99px; }
 .action-age.old { background: var(--red-bg); color: var(--red-text); }
 .action-age.mid { background: var(--amber-bg); color: var(--amber-text); }
@@ -1317,7 +1320,7 @@ function buildActionsList() {
     (n.actions||[]).forEach((a,i) => {
       const id = `${n.id}_${i}`;
       const assignee = parseAssignee(a);
-      all.push({ id, text: a, assignee, topic: n.topic, cat: n.cat, date: n.date, done: actionStates[id]?.done||false });
+      all.push({ id, text: a, assignee, topic: n.topic, cat: n.cat, date: n.date, done: actionStates[id]?.done||false, noteId: n.id, actionIdx: i });
     });
   });
   return all;
@@ -1398,6 +1401,9 @@ function renderActions() {
             <div class="action-text ${a.done?'done':''}">${a.text}${assigneeBadge}</div>
             <div class="action-from">${topicBadge}${a.date} · ${a.cat} meeting ${!a.done ? `<span class="action-age ${ageClass(a.date)}">${ageLabel(a.date)}</span>` : ''}</div>
           </div>
+          <button class="action-del" onclick="deleteAction('${a.noteId}', ${a.actionIdx})" aria-label="Delete action item" title="Delete">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" width="14" height="14"><polyline points="3 3 11 11"/><polyline points="11 3 3 11"/></svg>
+          </button>
         </div>`;
       }).join('')}
     </div>`;
@@ -1411,6 +1417,33 @@ function toggleAction(id, el) {
   actionStates[id].doneAt = isDone ? Date.now() : null;
   saveActions();
   renderActions();
+}
+
+function deleteAction(noteId, actionIdx) {
+  const noteIdx = notes.findIndex(n => n.id === noteId);
+  if (noteIdx === -1) return;
+  const note = notes[noteIdx];
+  const actionText = note.actions[actionIdx];
+  if (!confirm(`Delete this action item?
+
+"${actionText}"`)) return;
+  // Remove from note's actions array
+  note.actions.splice(actionIdx, 1);
+  saveNotes();
+  // Clean up any action state for this and re-index subsequent items
+  const prefix = `${noteId}_`;
+  const newStates = {};
+  Object.entries(actionStates).forEach(([k, v]) => {
+    if (!k.startsWith(prefix)) { newStates[k] = v; return; }
+    const idx = parseInt(k.replace(prefix, ''));
+    if (idx < actionIdx) newStates[k] = v;       // before deleted item — keep as-is
+    else if (idx > actionIdx) newStates[`${prefix}${idx-1}`] = v; // after — shift index down
+    // idx === actionIdx is the deleted item — drop it
+  });
+  actionStates = newStates;
+  saveActions();
+  renderActions();
+  toast('Action item deleted');
 }
 
 // ─── Pre-Meeting Brief ────────────────────────────────────────────────────────
