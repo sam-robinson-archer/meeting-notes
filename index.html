@@ -241,6 +241,27 @@ textarea { resize: vertical; }
 .due-overdue { color: var(--red-text); font-weight: 500; }
 .due-soon { color: var(--amber-text); font-weight: 500; }
 .due-ok { color: var(--green-text); }
+/* Editable detail view */
+.edit-field { width: 100%; font-family: var(--font); font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid transparent; border-radius: var(--radius-sm); padding: 6px 8px; line-height: 1.6; transition: border-color 0.15s, background 0.15s; resize: vertical; }
+.edit-field:hover { border-color: var(--border2); }
+.edit-field:focus { outline: none; border-color: var(--blue); background: var(--surface); }
+.edit-input { width: 100%; font-family: var(--font); font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid transparent; border-radius: var(--radius-sm); padding: 5px 8px; transition: border-color 0.15s; }
+.edit-input:hover { border-color: var(--border2); }
+.edit-input:focus { outline: none; border-color: var(--blue); background: var(--surface); }
+.edit-input.topic-input { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.edit-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.edit-row input { flex: 1; }
+.edit-row-del { background: none; border: none; color: var(--text3); cursor: pointer; padding: 3px 5px; border-radius: 3px; font-size: 14px; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; }
+.edit-row:hover .edit-row-del { opacity: 1; }
+.edit-row-del:hover { color: var(--red); background: var(--red-bg); }
+.add-field-btn { font-size: 12px; color: var(--blue); background: none; border: none; cursor: pointer; padding: 2px 4px; margin-top: 2px; }
+.add-field-btn:hover { text-decoration: underline; }
+.edit-flag-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; }
+.edit-flag-row select { font-size: 12px; padding: 3px 6px; border: 0.5px solid var(--border2); border-radius: 4px; background: var(--bg); color: var(--text); }
+.saved-indicator { font-size: 11px; color: var(--green); opacity: 0; transition: opacity 0.3s; margin-left: 8px; }
+.saved-indicator.flash { opacity: 1; }
+.detail-edit-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.detail-edit-meta select, .detail-edit-meta input[type=date] { font-size: 13px; padding: 4px 8px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
 /* Ad-hoc action grid */
 .adhoc-grid { width: 100%; border-collapse: collapse; font-size: 13px; }
 .adhoc-grid th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text3); padding: 6px 8px; border-bottom: 1px solid var(--border); }
@@ -1319,28 +1340,211 @@ function openDetail(idx) {
   document.querySelectorAll('.search-filters')[0].style.display = 'none';
   const d = document.getElementById('h-detail');
   d.style.display = 'block';
-  d.innerHTML = `
-    <button class="btn btn-sm" style="margin-bottom:1rem;" onclick="closeDetail()">← Back</button>
+  d.innerHTML = buildDetailHTML(idx);
+}
+
+function buildDetailHTML(idx) {
+  const e = notes[idx];
+  const cats = ['1:1','Client','Internal','Project','Other','Document'];
+  const types = ['Weekly 1:1','Monthly check-in','Kickoff','Status update','Performance review','Planning session','Retrospective','Ad-hoc','SOW / Contract','Proposal','Brief / Requirements','Email thread','Reference document'];
+
+  const arrayRows = (arr, field) => (arr||[]).map((item,i) => `
+    <div class="edit-row" id="row-${field}-${i}">
+      <input class="edit-input" value="${escHtml(item)}" 
+        onblur="updateNoteArrayItem(${idx},'${field}',${i},this.value)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();addNoteArrayItem(${idx},'${field}',${i});}"/>
+      <button class="edit-row-del" onclick="removeNoteArrayItem(${idx},'${field}',${i})" title="Remove">✕</button>
+    </div>`).join('') +
+    `<button class="add-field-btn" onclick="addNoteArrayItem(${idx},'${field}',${(arr||[]).length})">+ add item</button>`;
+
+  const flagRows = (flags) => (flags||[]).map((f,i) => `
+    <div class="edit-flag-row">
+      <input class="edit-input" style="flex:1;font-size:13px;" value="${escHtml(f.label)}"
+        onblur="updateNoteFlag(${idx},${i},'label',this.value)"/>
+      <select onchange="updateNoteFlag(${idx},${i},'type',this.value)">
+        <option value="win"${f.type==='win'?' selected':''}>Win</option>
+        <option value="risk"${f.type==='risk'?' selected':''}>Risk</option>
+        <option value="action"${f.type==='action'?' selected':''}>Action</option>
+      </select>
+      <button class="edit-row-del" style="opacity:1;" onclick="removeNoteFlag(${idx},${i})" title="Remove">✕</button>
+    </div>`).join('') +
+    `<button class="add-field-btn" onclick="addNoteFlag(${idx})">+ add flag</button>`;
+
+  return `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap;">
+      <button class="btn btn-sm" onclick="closeDetail()">← Back</button>
+      <span class="saved-indicator" id="save-indicator">✓ Saved</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="btn btn-sm" onclick="copyEntry(${idx})">Copy</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteEntry(${idx})">Delete</button>
+      </div>
+    </div>
     <div class="card">
-      <div class="detail-header">
-        <div>
-          <div class="detail-topic">${e.topic}${e.participants?`<span style="font-size:14px;font-weight:400;color:var(--text2);margin-left:8px;">w/ ${e.participants}</span>`:''}</div>
-          <div class="detail-meta">${badgeHtml(e.cat)} <span>${e.type}</span> <span>·</span> <span>${e.date}</span></div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-sm" onclick="copyEntry(${idx})">Copy</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteEntry(${idx})">Delete</button>
+      <div style="margin-bottom:1rem;">
+        <input class="edit-input topic-input" value="${escHtml(e.topic)}"
+          onblur="updateNoteField(${idx},'topic',this.value)"/>
+        <div class="detail-edit-meta">
+          ${badgeHtml(e.cat)}
+          <select onchange="updateNoteField(${idx},'type',this.value)">
+            ${types.map(t=>`<option value="${t}"${t===e.type?' selected':''}>${t}</option>`).join('')}
+          </select>
+          <input type="date" value="${e.date||''}" onchange="updateNoteField(${idx},'date',this.value)"/>
+          <input class="edit-input" style="width:180px;font-size:13px;" value="${escHtml(e.participants||'')}" placeholder="Participants..."
+            onblur="updateNoteField(${idx},'participants',this.value)"/>
         </div>
       </div>
-      <div class="section-label">Summary</div><div class="body-text">${e.summary||'—'}</div>
-      <div class="section-label">Key topics</div><div class="body-text">${(e.topics||[]).map((t,i)=>`${i+1}. ${t}`).join('\n')||'—'}</div>
-      <div class="section-label">Action items</div><div class="body-text">${(e.actions||[]).map((a,i)=>`${i+1}. ${a}`).join('\n')||'None'}</div>
-      <div class="section-label">Decisions made</div><div class="body-text">${(e.decisions||[]).map((d,i)=>`${i+1}. ${d}`).join('\n')||'None'}</div>
-      <div class="section-label">Flags</div><div>${flagsHtml(e.flags)}</div>
-      <div class="section-label">Private notes</div><div class="body-text">${e.private||'—'}</div>
-      <div class="section-label">Follow-up / next meeting</div><div class="body-text">${(e.followup||[]).map(f=>`• ${f}`).join('\n')||'—'}</div>
-      <div class="section-label">Keywords</div><div class="kw-list">${kwHtml(e.keywords,'searchKw')}</div>
+
+      <div class="section-label">Summary</div>
+      <textarea class="edit-field" rows="3"
+        onblur="updateNoteField(${idx},'summary',this.value)">${escHtml(e.summary||'')}</textarea>
+
+      <div class="section-label">Key topics</div>
+      <div id="edit-topics-${idx}">${arrayRows(e.topics,'topics')}</div>
+
+      <div class="section-label">Action items</div>
+      <div id="edit-actions-${idx}">${arrayRows(e.actions,'actions')}</div>
+
+      <div class="section-label">Decisions made</div>
+      <div id="edit-decisions-${idx}">${arrayRows(e.decisions,'decisions')}</div>
+
+      <div class="section-label">Flags</div>
+      <div id="edit-flags-${idx}">${flagRows(e.flags)}</div>
+
+      <div class="section-label">Private notes</div>
+      <textarea class="edit-field" rows="2"
+        onblur="updateNoteField(${idx},'private',this.value)">${escHtml(e.private||'')}</textarea>
+
+      <div class="section-label">Follow-up / next meeting</div>
+      <div id="edit-followup-${idx}">${arrayRows(e.followup,'followup')}</div>
+
+      <div class="section-label">Keywords</div>
+      <div id="edit-keywords-${idx}">${arrayRows(e.keywords,'keywords')}</div>
     </div>`;
+}
+
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function flashSaved() {
+  const el = document.getElementById('save-indicator');
+  if (!el) return;
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1800);
+}
+
+function updateNoteField(idx, field, value) {
+  if (!notes[idx]) return;
+  notes[idx][field] = value;
+  saveNotes(); flashSaved();
+  if (field === 'topic' || field === 'date' || field === 'type') updateSelects();
+}
+
+function updateNoteArrayItem(idx, field, itemIdx, value) {
+  if (!notes[idx]) return;
+  if (!notes[idx][field]) notes[idx][field] = [];
+  notes[idx][field][itemIdx] = value;
+  saveNotes(); flashSaved();
+}
+
+function addNoteArrayItem(idx, field, afterIdx) {
+  if (!notes[idx]) return;
+  if (!notes[idx][field]) notes[idx][field] = [];
+  notes[idx][field].splice(afterIdx, 0, '');
+  saveNotes();
+  // Re-render just the array section
+  const container = document.getElementById(`edit-${field}-${idx}`);
+  if (container) {
+    const cats = ['1:1','Client','Internal','Project','Other','Document'];
+    const types = ['Weekly 1:1','Monthly check-in','Kickoff','Status update','Performance review','Planning session','Retrospective','Ad-hoc','SOW / Contract','Proposal','Brief / Requirements','Email thread','Reference document'];
+    const arr = notes[idx][field];
+    container.innerHTML = arr.map((item,i) => `
+      <div class="edit-row">
+        <input class="edit-input" value="${escHtml(item)}"
+          onblur="updateNoteArrayItem(${idx},'${field}',${i},this.value)"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addNoteArrayItem(${idx},'${field}',${i+1});}"/>
+        <button class="edit-row-del" onclick="removeNoteArrayItem(${idx},'${field}',${i})" title="Remove">✕</button>
+      </div>`).join('') +
+      `<button class="add-field-btn" onclick="addNoteArrayItem(${idx},'${field}',${arr.length})">+ add item</button>`;
+    // Focus the new input
+    const inputs = container.querySelectorAll('input');
+    if (inputs[afterIdx]) inputs[afterIdx].focus();
+  }
+  flashSaved();
+}
+
+function removeNoteArrayItem(idx, field, itemIdx) {
+  if (!notes[idx] || !notes[idx][field]) return;
+  notes[idx][field].splice(itemIdx, 1);
+  saveNotes();
+  const container = document.getElementById(`edit-${field}-${idx}`);
+  if (container) {
+    const arr = notes[idx][field];
+    container.innerHTML = arr.map((item,i) => `
+      <div class="edit-row">
+        <input class="edit-input" value="${escHtml(item)}"
+          onblur="updateNoteArrayItem(${idx},'${field}',${i},this.value)"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addNoteArrayItem(${idx},'${field}',${i+1});}"/>
+        <button class="edit-row-del" onclick="removeNoteArrayItem(${idx},'${field}',${i})" title="Remove">✕</button>
+      </div>`).join('') +
+      `<button class="add-field-btn" onclick="addNoteArrayItem(${idx},'${field}',${arr.length})">+ add item</button>`;
+  }
+  flashSaved();
+}
+
+function updateNoteFlag(idx, flagIdx, prop, value) {
+  if (!notes[idx] || !notes[idx].flags || !notes[idx].flags[flagIdx]) return;
+  notes[idx].flags[flagIdx][prop] = value;
+  saveNotes(); flashSaved();
+}
+
+function addNoteFlag(idx) {
+  if (!notes[idx]) return;
+  if (!notes[idx].flags) notes[idx].flags = [];
+  notes[idx].flags.push({ label: '', type: 'action' });
+  saveNotes();
+  const container = document.getElementById(`edit-flags-${idx}`);
+  if (container) {
+    const flags = notes[idx].flags;
+    container.innerHTML = flags.map((f,i) => `
+      <div class="edit-flag-row">
+        <input class="edit-input" style="flex:1;font-size:13px;" value="${escHtml(f.label)}"
+          onblur="updateNoteFlag(${idx},${i},'label',this.value)"/>
+        <select onchange="updateNoteFlag(${idx},${i},'type',this.value)">
+          <option value="win"${f.type==='win'?' selected':''}>Win</option>
+          <option value="risk"${f.type==='risk'?' selected':''}>Risk</option>
+          <option value="action"${f.type==='action'?' selected':''}>Action</option>
+        </select>
+        <button class="edit-row-del" style="opacity:1;" onclick="removeNoteFlag(${idx},${i})" title="Remove">✕</button>
+      </div>`).join('') +
+      `<button class="add-field-btn" onclick="addNoteFlag(${idx})">+ add flag</button>`;
+    const inputs = container.querySelectorAll('input');
+    if (inputs[inputs.length-1]) inputs[inputs.length-1].focus();
+  }
+  flashSaved();
+}
+
+function removeNoteFlag(idx, flagIdx) {
+  if (!notes[idx] || !notes[idx].flags) return;
+  notes[idx].flags.splice(flagIdx, 1);
+  saveNotes();
+  const container = document.getElementById(`edit-flags-${idx}`);
+  if (container) {
+    const flags = notes[idx].flags;
+    container.innerHTML = flags.map((f,i) => `
+      <div class="edit-flag-row">
+        <input class="edit-input" style="flex:1;font-size:13px;" value="${escHtml(f.label)}"
+          onblur="updateNoteFlag(${idx},${i},'label',this.value)"/>
+        <select onchange="updateNoteFlag(${idx},${i},'type',this.value)">
+          <option value="win"${f.type==='win'?' selected':''}>Win</option>
+          <option value="risk"${f.type==='risk'?' selected':''}>Risk</option>
+          <option value="action"${f.type==='action'?' selected':''}>Action</option>
+        </select>
+        <button class="edit-row-del" style="opacity:1;" onclick="removeNoteFlag(${idx},${i})" title="Remove">✕</button>
+      </div>`).join('') +
+      `<button class="add-field-btn" onclick="addNoteFlag(${idx})">+ add flag</button>`;
+  }
+  flashSaved();
 }
 
 function closeDetail() {
